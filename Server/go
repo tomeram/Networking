@@ -1,0 +1,6 @@
+#!/bin/sh
+
+clear &
+gcc server.c &
+sudo ./a.out
+rm a.out
