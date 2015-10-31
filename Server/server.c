@@ -32,22 +32,22 @@ int main(int argc, char **argv) {
 
 	error_check((heap_a = strtol(argv[1], &end_ptr, 10)));
 	
-	if (end_ptr == argv[1]) {
-		printf("Error: Ileagal heap 1 size given.\n");
+	if (end_ptr == argv[1] || heap_a > 1000 || heap_a < 0) {
+		printf("Error: Ileagal heap 1 size given. Please enter a number between 1 and 1000.\n");
 		exit(0);
 	}
 
 	error_check((heap_b = strtol(argv[2], &end_ptr, 10)));
 	
-	if (end_ptr == argv[2]) {
-		printf("Error: Ileagal heap 2 size given.\n");
+	if (end_ptr == argv[2] || heap_b > 1000 || heap_b < 0) {
+		printf("Error: Ileagal heap 2 size given. Please enter a number between 1 and 1000.\n");
 		exit(0);
 	}
 
 	error_check((head_c = strtol(argv[3], &end_ptr, 10)));
 	
-	if (end_ptr == argv[3]) {
-		printf("Error: Ileagal heap 3 size given.\n");
+	if (end_ptr == argv[3] || head_c > 1000 || head_c < 0) {
+		printf("Error: Ileagal heap 3 size given. Please enter a number between 1 and 1000.\n");
 		exit(0);
 	}
 
