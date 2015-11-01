@@ -31,7 +31,7 @@ int client_action(char *request, server_mode *mode) {
 	char *end_ptr;
 
 	if (request[0] == 'Q' && strlen(request) == 1) {
-		mode = STOP;
+		*mode = STOP;
 		return 1;
 	}
 
@@ -48,22 +48,22 @@ int client_action(char *request, server_mode *mode) {
 	regfree(&regex);
 
 	switch (request[0]) {
-		case A:
+		case 'A':
 			curr_heap = &heap_a;
 			break;
-		case B:
+		case 'B':
 			curr_heap = &heap_b;
 			break;
-		case C:
+		case 'C':
 			curr_heap = &heap_c;
 			break;
 		default:
 			break;
 	}
 
-	error_check((remove_num = strtol(request[2], &end_ptr, 10)));
+	error_check((remove_num = strtol(&request[2], &end_ptr, 10)));
 	
-	if ((end_ptr == request[2] || remove_num > 1000 || remove_num < 0) && (remove_num < *curr_heap) {
+	if ((end_ptr == &request[2] || remove_num > 1000 || remove_num < 0) && (remove_num < *curr_heap)) {
 		strcat(response, MOVE_ERR);
 
 		regfree(&regex);
@@ -74,7 +74,7 @@ int client_action(char *request, server_mode *mode) {
 	*curr_heap -= remove_num;
 
 	if (heap_a == 0 && heap_b == 0 && heap_c == 0) {
-		update_client(client_sock_fd);
+		update_client();
 		strcat(response, CLIENT_WIN);
 		*mode = STOP;
 
@@ -92,7 +92,7 @@ int client_action(char *request, server_mode *mode) {
 	*curr_heap--;
 
 	if (heap_a == 0 && heap_b == 0 && heap_c == 0) {
-		update_client(client_sock_fd);
+		update_client();
 		strcat(response, WIN_SERVER);
 		*mode = STOP;
 
@@ -170,7 +170,7 @@ int main(int argc, char **argv) {
 	// The extra beackets are because of the == operator in the error_check macro
 	error_check((client_sock_fd = accept(sock_fd, (struct sockaddr *) &client_addr, &client_addr_size)));
 
-	update_client(client_sock_fd);
+	update_client();
 
 	while (mode == RUN) {
 		bzero(response, BUFF_SIZE);
@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
 
 		printf("Size: %d, len: %d\nRecieved: %s\n", byte_num, strlen(buff), buff);
 
-		client_action(sock_fd, buff, &mode);
+		client_action(buff, &mode);
 	}
 
 	close(sock_fd);
