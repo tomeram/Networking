@@ -19,6 +19,10 @@ void update_client(int sock_fd) {
 	error_check(send(sock_fd, buff, sizeof(buff), 0));
 }
 
+void client_action(int sock_fd, server_mode *mode) {
+
+}
+
 int main(int argc, char **argv) {
 	int sock_fd, client_sock_fd;
 	int client_addr_size;
@@ -82,6 +86,8 @@ int main(int argc, char **argv) {
 	// The extra beackets are because of the == operator in the error_check macro
 	error_check((client_sock_fd = accept(sock_fd, (struct sockaddr *) &client_addr, &client_addr_size)));
 
+	update_client(client_sock_fd);
+
 	while (mode == RUN) {
 		//error_check(send(client_sock_fd, "server response test\n", sizeof("server response test\n"), 0));
 		update_client(client_sock_fd);
@@ -91,7 +97,7 @@ int main(int argc, char **argv) {
 
 		printf("Size: %d, len: %d\nRecieved: %s\n", byte_num, strlen(buff), buff);
 
-		if (!strcmp(buff, "Q")) {
+		if (!strcmp(buff, "Q\n")) {
 			mode = STOP;
 		}
 	}
