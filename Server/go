@@ -1,6 +1,11 @@
 #!/bin/sh
 
-clear &
-gcc server.c &
-sudo ./a.out
-rm a.out
+
+for i in "$@"
+do
+	clear &
+	echo $i
+	gcc -o nim-server server.c &
+	sudo ./nim-server 123 456 789 $i
+	rm nim-server
+done

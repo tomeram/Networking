@@ -1,13 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <errno.h>
-#include <string.h>
-#include <assert.h>
+#include "server.h"
 
 // This is an error checking macro.
 #define error_check(res) if (res < 0) { 	\
@@ -25,10 +16,11 @@ int main(int argc, char **argv) {
 	char buff[BUFF_SIZE];
 
 	int heap_a, heap_b, head_c;
+	int server_port;
 	char *end_ptr;
 
 	// Validating inputs
-	assert(argc == 4);
+	assert(argc == 5);
 
 	error_check((heap_a = strtol(argv[1], &end_ptr, 10)));
 	
@@ -51,9 +43,17 @@ int main(int argc, char **argv) {
 		exit(0);
 	}
 
+	error_check((server_port = strtol(argv[4], &end_ptr, 10)));
+	
+	if (end_ptr == argv[4] || server_port > 65535 || server_port < 1) {
+		printf("Error: Ileagal server port number.\n");
+		exit(0);
+	}
 
+
+	// Setting up server
 	my_addr.sin_family = AF_INET;
-	my_addr.sin_port = htons(80);
+	my_addr.sin_port = htons(server_port);
 	my_addr.sin_addr.s_addr = INADDR_ANY; //htonl(0x8443FC64);
 
 	sock_fd = socket(PF_INET, SOCK_STREAM, 0);
@@ -69,9 +69,10 @@ int main(int argc, char **argv) {
 	// The extra beackets are because of the == operator in the error_check macro
 	error_check((client_sock_fd = accept(sock_fd, (struct sockaddr *) &client_addr, &client_addr_size)));
 
-	error_check(byte_num = recv(client_sock_fd, buff, BUFF_SIZE - 1, 0));
+	bzero(buff, BUFF_SIZE); // Clear the buffer before use.
+	error_check((byte_num = recv(client_sock_fd, buff, BUFF_SIZE - 1, 0)));
 
-	printf("Recieved: %s\n", buff);
+	printf("Size: %d, len: %d\nRecieved: %s\n", byte_num, strlen(buff), buff);
 
 	error_check(send(client_sock_fd, "server response test\n", sizeof("server response test\n"), 0));
 
