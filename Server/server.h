@@ -12,4 +12,9 @@
 #include <string.h>
 #include <assert.h>
 
+typedef enum {
+	RUN,
+	STOP
+} server_mode;
+
 #endif

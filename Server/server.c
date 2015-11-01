@@ -8,6 +8,17 @@
 
 #define BUFF_SIZE 1024
 
+int heap_a, heap_b, head_c;
+server_mode mode;
+
+void update_client(int sock_fd) {
+	char buff[2048] = {0, };
+
+	sprintf(buff, "Heap A: %d\nHeap B: %d\nHeap C: %d\n", heap_a, heap_b, head_c);
+
+	error_check(send(sock_fd, buff, sizeof(buff), 0));
+}
+
 int main(int argc, char **argv) {
 	int sock_fd, client_sock_fd;
 	int client_addr_size;
@@ -15,12 +26,11 @@ int main(int argc, char **argv) {
 	struct sockaddr_in my_addr, client_addr;
 	char buff[BUFF_SIZE];
 
-	int heap_a, heap_b, head_c;
-	int server_port;
+	int server_port = 6444;
 	char *end_ptr;
 
 	// Validating inputs
-	assert(argc == 5);
+	assert(argc >= 4 && argc <= 5);
 
 	error_check((heap_a = strtol(argv[1], &end_ptr, 10)));
 	
@@ -43,11 +53,14 @@ int main(int argc, char **argv) {
 		exit(0);
 	}
 
-	error_check((server_port = strtol(argv[4], &end_ptr, 10)));
-	
-	if (end_ptr == argv[4] || server_port > 65535 || server_port < 1) {
-		printf("Error: Ileagal server port number.\n");
-		exit(0);
+
+	if (argc == 5) {
+		error_check((server_port = strtol(argv[4], &end_ptr, 10)));
+		
+		if (end_ptr == argv[4] || server_port > 65535 || server_port < 1) {
+			printf("Error: Ileagal server port number.\n");
+			exit(0);
+		}
 	}
 
 
@@ -69,12 +82,19 @@ int main(int argc, char **argv) {
 	// The extra beackets are because of the == operator in the error_check macro
 	error_check((client_sock_fd = accept(sock_fd, (struct sockaddr *) &client_addr, &client_addr_size)));
 
-	bzero(buff, BUFF_SIZE); // Clear the buffer before use.
-	error_check((byte_num = recv(client_sock_fd, buff, BUFF_SIZE - 1, 0)));
+	while (mode == RUN) {
+		//error_check(send(client_sock_fd, "server response test\n", sizeof("server response test\n"), 0));
+		update_client(client_sock_fd);
 
-	printf("Size: %d, len: %d\nRecieved: %s\n", byte_num, strlen(buff), buff);
+		bzero(buff, BUFF_SIZE); // Clear the buffer before use.
+		error_check((byte_num = recv(client_sock_fd, buff, BUFF_SIZE - 1, 0)));
 
-	error_check(send(client_sock_fd, "server response test\n", sizeof("server response test\n"), 0));
+		printf("Size: %d, len: %d\nRecieved: %s\n", byte_num, strlen(buff), buff);
+
+		if (!strcmp(buff, "Q")) {
+			mode = STOP;
+		}
+	}
 
 	close(sock_fd);
 	close(client_sock_fd);

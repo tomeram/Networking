@@ -6,4 +6,5 @@ do
 	clear &
 	make &
 	./nim-server 123 456 789 $i
+	make clean
 done
