@@ -12,4 +12,9 @@
 #include <sys/socket.h>
 #include <assert.h>
 
+typedef enum {
+	RUN,
+	STOP
+} mode;
+
 #endif
