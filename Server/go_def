@@ -1,0 +1,6 @@
+#!/bin/sh
+
+clear &
+make &
+./nim-server 123 123 123
+make clean
