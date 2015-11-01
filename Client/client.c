@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
 
 		//------Check if game ended-----
 		end_check = strstr(buf, "win!");
-		if (end_check == NULL) {
+		if (end_check != NULL) {
 			game_mode = STOP;
 			break;
 		}
@@ -121,9 +121,11 @@ int main(int argc, char **argv) {
 			break;
 		}
 		//-----------------------------
-	
+		
 	}
 	//-------------------------------------------------
+
+	//shutdown(sockfd, SHUT_FW)
 
 	close(sockfd);
 	return 0;
