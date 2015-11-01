@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
+#include <regex.h>
 
 typedef enum {
 	RUN,

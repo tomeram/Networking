@@ -6,21 +6,105 @@
 	exit(1);								\
 }
 
-#define BUFF_SIZE 1024
+#define BUFF_SIZE 2048
+#define MOVE_ERR "Ileagal move:\n"
+#define MOVE_OK "Move accepted\n"
+#define CLIENT_TURN "Your Turn:\n"
+#define WIN_SERVER "Server win!\n"
+#define CLIENT_WIN "You win!\n"
 
-int heap_a, heap_b, head_c;
+int heap_a, heap_b, heap_c;
 server_mode mode;
+char response[BUFF_SIZE];
 
-void update_client(int sock_fd) {
+void update_client() {
 	char buff[2048] = {0, };
 
-	sprintf(buff, "Heap A: %d\nHeap B: %d\nHeap C: %d\n", heap_a, heap_b, head_c);
+	sprintf(buff, "Heap A: %d\nHeap B: %d\nHeap C: %d\n", heap_a, heap_b, heap_c);
 
-	error_check(send(sock_fd, buff, sizeof(buff), 0));
+	strcat(response, buff);
 }
 
-void client_action(int sock_fd, server_mode *mode) {
+int client_action(char *request, server_mode *mode) {
+	regex_t regex;
+	int *curr_heap, remove_num;
+	char *end_ptr;
 
+	if (request[0] == 'Q' && strlen(request) == 1) {
+		mode = STOP;
+		return 1;
+	}
+
+	error_check(regcomp(&regex, "/^([A-C]\\s([0-9]{1,4}))$/", 0));
+
+	if (regexec(&regex, request, 0, NULL, 0)) {
+		strcat(response, MOVE_ERR);
+
+		regfree(&regex);
+
+		return 0;
+	}
+
+	regfree(&regex);
+
+	switch (request[0]) {
+		case A:
+			curr_heap = &heap_a;
+			break;
+		case B:
+			curr_heap = &heap_b;
+			break;
+		case C:
+			curr_heap = &heap_c;
+			break;
+		default:
+			break;
+	}
+
+	error_check((remove_num = strtol(request[2], &end_ptr, 10)));
+	
+	if ((end_ptr == request[2] || remove_num > 1000 || remove_num < 0) && (remove_num < *curr_heap) {
+		strcat(response, MOVE_ERR);
+
+		regfree(&regex);
+
+		return 0;
+	}
+
+	*curr_heap -= remove_num;
+
+	if (heap_a == 0 && heap_b == 0 && heap_c == 0) {
+		update_client(client_sock_fd);
+		strcat(response, CLIENT_WIN);
+		*mode = STOP;
+
+		return 1;
+	}
+
+	curr_heap = &heap_a;
+
+	if (heap_b > heap_a) {
+		curr_heap = &heap_b;
+	} else if (*curr_heap < heap_c) {
+		curr_heap = &heap_c;
+	}
+
+	*curr_heap--;
+
+	if (heap_a == 0 && heap_b == 0 && heap_c == 0) {
+		update_client(client_sock_fd);
+		strcat(response, WIN_SERVER);
+		*mode = STOP;
+
+		return 1;
+	}
+
+	strcat(response, MOVE_OK);
+	update_client();
+
+	strcat(response, CLIENT_TURN);
+
+	return 1;
 }
 
 int main(int argc, char **argv) {
@@ -50,9 +134,9 @@ int main(int argc, char **argv) {
 		exit(0);
 	}
 
-	error_check((head_c = strtol(argv[3], &end_ptr, 10)));
+	error_check((heap_c = strtol(argv[3], &end_ptr, 10)));
 	
-	if (end_ptr == argv[3] || head_c > 1000 || head_c < 0) {
+	if (end_ptr == argv[3] || heap_c > 1000 || heap_c < 0) {
 		printf("Error: Ileagal heap 3 size given. Please enter a number between 1 and 1000.\n");
 		exit(0);
 	}
@@ -89,17 +173,13 @@ int main(int argc, char **argv) {
 	update_client(client_sock_fd);
 
 	while (mode == RUN) {
-		//error_check(send(client_sock_fd, "server response test\n", sizeof("server response test\n"), 0));
-		update_client(client_sock_fd);
-
+		bzero(response, BUFF_SIZE);
 		bzero(buff, BUFF_SIZE); // Clear the buffer before use.
 		error_check((byte_num = recv(client_sock_fd, buff, BUFF_SIZE - 1, 0)));
 
 		printf("Size: %d, len: %d\nRecieved: %s\n", byte_num, strlen(buff), buff);
 
-		if (!strcmp(buff, "Q\n")) {
-			mode = STOP;
-		}
+		client_action(sock_fd, buff, &mode);
 	}
 
 	close(sock_fd);
