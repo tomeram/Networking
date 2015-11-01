@@ -12,7 +12,7 @@
 
 int main(int argc, char **argv) {
 	int sockfd, numbytes;
-	char buf[BUFF_SIZE];
+	char response[BUFF_SIZE], request[BUFF_SIZE];
 	mode game_mode;
 
 	char input[101], *end_check = NULL; //we're counting on the fact that 100 chars will be enough to send the command :)
@@ -87,18 +87,18 @@ int main(int argc, char **argv) {
 	while (game_mode == RUN) {
 
 		//-----Recv & Print-------------
-		if ((numbytes = recv(sockfd,buf, BUFF_SIZE-1,0)) == -1) {
+		if ((numbytes = recv(sockfd,response, BUFF_SIZE-1,0)) == -1) {
 			perror("recv");
 			exit(1);
 		}
 
-		buf[numbytes] = '\0';
-		printf("%s\n", buf);
+		response[numbytes] = '\0';
+		printf("%s\n", response);
 		//------------------------------
 
 
 		//------Check if game ended-----
-		end_check = strstr(buf, "win!");
+		end_check = strstr(response, "win!");
 		if (end_check != NULL) {
 			game_mode = STOP;
 			break;
@@ -107,25 +107,38 @@ int main(int argc, char **argv) {
 
 
 		//-----Scanf & Send------------
+		bzero(request ,BUFF_SIZE);
+
 		bzero(input, 101);
 		if (scanf("%100s", input) == 100) {
 			input[101] = '\0';
 		}
 
-		send(sockfd, input, sizeof(input), 0);		
-		//-----------------------------
-		
 		//--Check if user ended game--
 		if (input[0] == 'Q' && input[1] == '\0') {
 			game_mode = STOP;
+			send(sockfd, input, sizeof(input), 0);
 			break;
 		}
+		//-----------------------------
+		
+		strcpy(response, input);
+		strcat(response, " ");
+
+		bzero(input, 101);
+		if (scanf("%100s", input) == 100) {
+			input[101] = '\0';
+		}
+
+		strcat(response, input);
+
+		send(sockfd, response, sizeof(response), 0);		
 		//-----------------------------
 		
 	}
 	//-------------------------------------------------
 
-	//shutdown(sockfd, SHUT_FW)
+	//shutdown(sockfd, SHUT_WR)
 
 	close(sockfd);
 	return 0;
