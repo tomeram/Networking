@@ -170,7 +170,10 @@ int main(int argc, char **argv) {
 	// The extra beackets are because of the == operator in the error_check macro
 	error_check((client_sock_fd = accept(sock_fd, (struct sockaddr *) &client_addr, &client_addr_size)));
 
+	bzero(response, BUFF_SIZE);
 	update_client();
+	error_check(send(client_sock_fd, response, sizeof(response), 0));
+
 
 	while (mode == RUN) {
 		bzero(response, BUFF_SIZE);
@@ -180,6 +183,7 @@ int main(int argc, char **argv) {
 		printf("Size: %d, len: %d\nRecieved: %s\n", byte_num, strlen(buff), buff);
 
 		client_action(buff, &mode);
+		error_check(send(client_sock_fd, response, sizeof(response), 0));
 	}
 
 	close(sock_fd);
