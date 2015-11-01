@@ -80,7 +80,7 @@ int client_action(char *request, server_mode *mode) {
 	error_check((remove_num = strtol(&request[2], &end_ptr, 10)));
 	
 	//----Check if valid move----
-	if (end_ptr == &request[2] || remove_num > 1000 || remove_num < 0 ||
+	if (end_ptr == &request[2] || remove_num > 1000 || remove_num <= 0 ||
 	 	remove_num > *curr_heap) {
 		strcat(response, MOVE_ERR);
 		prepare_response();
@@ -141,7 +141,7 @@ int client_action(char *request, server_mode *mode) {
 
 int main(int argc, char **argv) {
 	int sock_fd, client_sock_fd;
-	int client_addr_size;
+	socklen_t client_addr_size;
 	int byte_num;
 	struct sockaddr_in my_addr, client_addr;
 	char buff[BUFF_SIZE];
