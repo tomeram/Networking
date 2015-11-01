@@ -36,9 +36,9 @@ int client_action(char *request, server_mode *mode) {
 		return 1;
 	}
 
-	error_check(regcomp(&regex, "/^([A-C]\\s([0-9]{1,4}))$/", 0));
+	error_check(regcomp(&regex, "^[A-C]\\s([0-9]{1,4})$", REG_EXTENDED));
 
-	regex_res = regexec(&regex, request, 0, NULL, REG_EXTENDED);
+	regex_res = regexec(&regex, request, 0, NULL, 0);
 	printf("%d\n", regex_res);
 
 	if (regex_res == REG_NOMATCH) {
@@ -94,7 +94,7 @@ int client_action(char *request, server_mode *mode) {
 		curr_heap = &heap_c;
 	}
 
-	*curr_heap--;
+	*curr_heap -= 1;
 
 	if (heap_a == 0 && heap_b == 0 && heap_c == 0) {
 		update_client();
@@ -185,7 +185,7 @@ int main(int argc, char **argv) {
 		bzero(buff, BUFF_SIZE); // Clear the buffer before use.
 		error_check((byte_num = recv(client_sock_fd, buff, BUFF_SIZE - 1, 0)));
 
-		printf("Size: %d, len: %d\nRecieved: %s\n", byte_num, strlen(buff), buff);
+		//printf("Size: %d, len: %d\nRecieved: %s\n", byte_num, strlen(buff), buff);
 
 		client_action(buff, &mode);
 
