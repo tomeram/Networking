@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
 	char buf[DATASIZE];
 	struct addrinfo hints, *servinfo, *p;
 
-	char *hostname, *port;
+	char *hostname = "localhost", *port = "6444";
 
 	assert(argc <= 3);
 	
@@ -34,17 +34,17 @@ int main(int argc, char **argv) {
 
 
 
-	memset(&hints, 0 sizeof hints);
+	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
-	if(getaddrinfo(*hostname, *port, &hints, &servinfo) != 0) {
+	if(getaddrinfo(hostname, port, &hints, &servinfo) != 0) {
 		perror("getaddrinfo");
 		exit(1);
 	}
 
 	//loop through possible results
-	for (p servinfo; p != NULL; p = p->ai_next) {
+	for (p = servinfo; p != NULL; p = p->ai_next) {
 		if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
 			perror("socket");
 			continue;
@@ -71,6 +71,8 @@ int main(int argc, char **argv) {
 		perror("recv");
 		exit(1);
 	}
+
+	send(sockfd, "This is Gal's awesome client!!!\n", sizeof("This is Gal's awesome client!!!\n"), 0);
 
 	buf[numbytes] = '\0';
 	printf("Received: %s", buf);
