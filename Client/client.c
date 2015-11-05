@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
 
 		strcat(response, input);
 
-		send(sockfd, response, sizeof(response), 0);		
+		send(sockfd, response, strlen(response), 0);		
 		//-----------------------------
 		
 	}
