@@ -87,6 +87,7 @@ int main(int argc, char **argv) {
 	while (game_mode == RUN) {
 
 		//-----Recv & Print-------------
+		bzero(response, BUFF_SIZE);
 		if ((numbytes = recv(sockfd,response, BUFF_SIZE-1,0)) == -1) {
 			perror("recv");
 			exit(1);
@@ -138,7 +139,7 @@ int main(int argc, char **argv) {
 	}
 	//-------------------------------------------------
 
-	//shutdown(sockfd, SHUT_WR)
+	shutdown(sockfd, SHUT_WR);
 
 	close(sockfd);
 	return 0;
