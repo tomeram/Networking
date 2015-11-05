@@ -29,6 +29,7 @@ int client_action(char *request, server_mode *mode) {
 	regex_t regex;
 	int *curr_heap, remove_num;
 	char *end_ptr;
+	int regex_res;
 
 	if (request[0] == 'Q' && strlen(request) == 1) {
 		*mode = STOP;
@@ -37,8 +38,12 @@ int client_action(char *request, server_mode *mode) {
 
 	error_check(regcomp(&regex, "/^([A-C]\\s([0-9]{1,4}))$/", 0));
 
-	if (regexec(&regex, request, 0, NULL, 0)) {
+	regex_res = regexec(&regex, request, 0, NULL, REG_EXTENDED);
+	printf("%d\n", regex_res);
+
+	if (regex_res == REG_NOMATCH) {
 		strcat(response, MOVE_ERR);
+		update_client();
 
 		regfree(&regex);
 
@@ -172,7 +177,7 @@ int main(int argc, char **argv) {
 
 	bzero(response, BUFF_SIZE);
 	update_client();
-	error_check(send(client_sock_fd, response, sizeof(response), 0));
+	error_check(send(client_sock_fd, response, strlen(response), 0));
 
 
 	while (mode == RUN) {
@@ -183,7 +188,8 @@ int main(int argc, char **argv) {
 		printf("Size: %d, len: %d\nRecieved: %s\n", byte_num, strlen(buff), buff);
 
 		client_action(buff, &mode);
-		error_check(send(client_sock_fd, response, sizeof(response), 0));
+
+		error_check(send(client_sock_fd, response, strlen(response), 0));
 	}
 
 	close(sock_fd);
