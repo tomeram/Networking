@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
 			break;
 		case 3:
 			hostname = argv[1];
-			port 	 = arg[2];
+			port 	 = argv[2];
 			break;
 	}
 	//-------------------------------------------------
