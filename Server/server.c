@@ -7,7 +7,7 @@
 }
 
 #define BUFF_SIZE 2048
-#define MOVE_ERR "Ileagal move:\n"
+#define MOVE_ERR "Ileagal move\n"
 #define MOVE_OK "Move accepted\n"
 #define CLIENT_TURN "Your Turn:\n"
 #define WIN_SERVER "Server win!\n"
@@ -54,7 +54,7 @@ int client_action(char *request, server_mode *mode) {
 	if (regex_res == REG_NOMATCH) {
 		strcat(response, MOVE_ERR);
 		prepare_response();
-
+		strcat(response, CLIENT_TURN);
 		regfree(&regex);
 
 		return 0;
@@ -83,6 +83,8 @@ int client_action(char *request, server_mode *mode) {
 	if (end_ptr == &request[2] || remove_num > 1000 || remove_num < 0 ||
 	 	remove_num > *curr_heap) {
 		strcat(response, MOVE_ERR);
+		prepare_response();
+		strcat(response, CLIENT_TURN);
 
 		regfree(&regex);
 
@@ -207,6 +209,7 @@ int main(int argc, char **argv) {
 	//Client connected - send first response and start game-loop
 	bzero(response, BUFF_SIZE);
 	prepare_response();
+	strcat(response, CLIENT_TURN);
 	error_check(send(client_sock_fd, response, strlen(response), 0));
 
 
@@ -224,6 +227,7 @@ int main(int argc, char **argv) {
 	//----------------------------------------------------------
 
 	//Game Ended - close sockets
+	error_check((recv(client_sock_fd, buff, BUFF_SIZE - 1, 0))); //recv shutdown
 	close(sock_fd);
 	close(client_sock_fd);
 

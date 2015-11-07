@@ -9,8 +9,9 @@
 
 #define BUFF_SIZE 1024
 
+
 int main(int argc, char **argv) {
-	int sockfd, numbytes;
+	int sockfd, numbytes, input_len;
 	char response[BUFF_SIZE], request[BUFF_SIZE];
 	char *default_hostname = "localhost", *default_port = "6444", 
 			*hostname, *port;
@@ -106,35 +107,26 @@ int main(int argc, char **argv) {
 
 
 		//-----Scanf & Send------------
-		//the request is a string of the command - exactly as the user typed them.
-		//validation of the command is done server-side, with the exception of "Q",
+		//the request is a string of the command - exactly as the user typed it.
+		//validation of the command is done server-side, with the exception of game endings,
 		//that if found by the client - sends a shutdown signal to the server.
 		//the response is simply a string of the game status
 		//the game logic & status is kept on the server only.
 		bzero(request ,BUFF_SIZE);
-
-		bzero(input, 101);
-		if (scanf("%100s", input) == 100) {
-			input[101] = '\0';
+		input_len = 0;
+		while ((request[input_len] = getchar()) != '\n') {
+			input_len++;
+			if (input_len == BUFF_SIZE - 1) {
+				while(getchar() != '\n'); //flush the rest of the input
+				break;
+			}
 		}
-
-		//--Check if user ended game--
-		if (input[0] == 'Q' && input[1] == '\0') {
-			game_mode = STOP;
-			error_check(send(sockfd, input, sizeof(input), 0));
-			break;
-		}
-		//-----------------------------
+		request[input_len] = '\0';
 		
-		strcpy(request, input);
-		strcat(request, " ");
-
-		bzero(input, 101);
-		if (scanf("%100s", input) == 100) {
-			input[101] = '\0';
+		//check if Q
+		if (request[0] == 'Q' && input_len == 1) {
+			game_mode = STOP;
 		}
-
-		strcat(request, input);
 
 		error_check(send(sockfd, request, strlen(request), 0));		
 		//-----------------------------
