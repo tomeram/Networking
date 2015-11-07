@@ -17,7 +17,7 @@ int heap_a, heap_b, heap_c;
 server_mode mode;
 char response[BUFF_SIZE];
 
-void update_client() {
+void prepare_response() {
 	char buff[2048] = {0, };
 
 	sprintf(buff, "Heap A: %d\nHeap B: %d\nHeap C: %d\n", heap_a, heap_b, heap_c);
@@ -25,25 +25,35 @@ void update_client() {
 	strcat(response, buff);
 }
 
+//this function is to 'decrypt' the client's request
+//and perform the client & server move if request is valid.
+
 int client_action(char *request, server_mode *mode) {
 	regex_t regex;
 	int *curr_heap, remove_num;
 	char *end_ptr;
 	int regex_res;
 
+
+	//---------Check if valid command & valid move--------
+
 	if (request[0] == 'Q' && strlen(request) == 1) {
 		*mode = STOP;
 		return 1;
 	}
 
+	//we verify the client's request via regex.
+	//the regex is looking for 2 words - a char in the range A-C
+	//and a number in the range 0-9999
 	error_check(regcomp(&regex, "^[A-C]\\s([0-9]{1,4})$", REG_EXTENDED));
 
 	regex_res = regexec(&regex, request, 0, NULL, 0);
-	printf("%d\n", regex_res);
+	//printf("%d\n", regex_res);
 
+	//if Invalid command
 	if (regex_res == REG_NOMATCH) {
 		strcat(response, MOVE_ERR);
-		update_client();
+		prepare_response();
 
 		regfree(&regex);
 
@@ -52,6 +62,7 @@ int client_action(char *request, server_mode *mode) {
 
 	regfree(&regex);
 
+	//Else - Valid command.
 	switch (request[0]) {
 		case 'A':
 			curr_heap = &heap_a;
@@ -68,7 +79,9 @@ int client_action(char *request, server_mode *mode) {
 
 	error_check((remove_num = strtol(&request[2], &end_ptr, 10)));
 	
-	if ((end_ptr == &request[2] || remove_num > 1000 || remove_num < 0) && (remove_num < *curr_heap)) {
+	//----Check if valid move----
+	if (end_ptr == &request[2] || remove_num > 1000 || remove_num < 0 ||
+	 	remove_num > *curr_heap) {
 		strcat(response, MOVE_ERR);
 
 		regfree(&regex);
@@ -76,40 +89,52 @@ int client_action(char *request, server_mode *mode) {
 		return 0;
 	}
 
+	//-----------------------------------------------------
+
+
+	//-------------valid move - Continue with the game-----------
+	//client move
 	*curr_heap -= remove_num;
 
+	//check client win
 	if (heap_a == 0 && heap_b == 0 && heap_c == 0) {
-		update_client();
+		prepare_response();
 		strcat(response, CLIENT_WIN);
 		*mode = STOP;
 
 		return 1;
 	}
+	//-----------------
 
+	//Computer's Move
 	curr_heap = &heap_a;
 
 	if (heap_b > heap_a) {
 		curr_heap = &heap_b;
-	} else if (*curr_heap < heap_c) {
+	} 
+	if (*curr_heap < heap_c) {
 		curr_heap = &heap_c;
 	}
 
 	*curr_heap -= 1;
 
+	//check computer win
 	if (heap_a == 0 && heap_b == 0 && heap_c == 0) {
-		update_client();
+		prepare_response();
 		strcat(response, WIN_SERVER);
 		*mode = STOP;
 
 		return 1;
 	}
+	//-----------------
 
 	strcat(response, MOVE_OK);
-	update_client();
+	prepare_response();
 
 	strcat(response, CLIENT_TURN);
 
 	return 1;
+	//-----------------------------------------------------
 }
 
 int main(int argc, char **argv) {
@@ -122,7 +147,7 @@ int main(int argc, char **argv) {
 	int server_port = 6444;
 	char *end_ptr;
 
-	// Validating inputs
+	//-----Validating inputs-----
 	assert(argc >= 4 && argc <= 5);
 
 	error_check((heap_a = strtol(argv[1], &end_ptr, 10)));
@@ -131,6 +156,7 @@ int main(int argc, char **argv) {
 		printf("Error: Ileagal heap 1 size given. Please enter a number between 1 and 1000.\n");
 		exit(0);
 	}
+
 
 	error_check((heap_b = strtol(argv[2], &end_ptr, 10)));
 	
@@ -155,9 +181,10 @@ int main(int argc, char **argv) {
 			exit(0);
 		}
 	}
+	//-------------------------
 
 
-	// Setting up server
+	//----Setting up server----
 	my_addr.sin_family = AF_INET;
 	my_addr.sin_port = htons(server_port);
 	my_addr.sin_addr.s_addr = INADDR_ANY; //htonl(0x8443FC64);
@@ -172,11 +199,14 @@ int main(int argc, char **argv) {
 
 	client_addr_size = sizeof(client_addr);
 
-	// The extra beackets are because of the == operator in the error_check macro
+	//Extra brackets due to '==' operator in the error_check macro
 	error_check((client_sock_fd = accept(sock_fd, (struct sockaddr *) &client_addr, &client_addr_size)));
+	
+	//-------------------------
 
+	//Client connected - send first response and start game-loop
 	bzero(response, BUFF_SIZE);
-	update_client();
+	prepare_response();
 	error_check(send(client_sock_fd, response, strlen(response), 0));
 
 
@@ -191,7 +221,9 @@ int main(int argc, char **argv) {
 
 		error_check(send(client_sock_fd, response, strlen(response), 0));
 	}
+	//----------------------------------------------------------
 
+	//Game Ended - close sockets
 	close(sock_fd);
 	close(client_sock_fd);
 

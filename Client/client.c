@@ -8,19 +8,17 @@
 
 
 #define BUFF_SIZE 1024
-#
 
 int main(int argc, char **argv) {
 	int sockfd, numbytes;
 	char response[BUFF_SIZE], request[BUFF_SIZE];
-	mode game_mode;
-
-	char input[101], *end_check = NULL; //we're counting on the fact that 100 chars will be enough to send the command :)
-
-	struct addrinfo hints, *servinfo, *p;
-
 	char *default_hostname = "localhost", *default_port = "6444", 
 			*hostname, *port;
+	char input[101], *end_check = NULL; //limit user to 100 chars to send
+
+	mode game_mode;
+
+	struct addrinfo hints, *servinfo, *p;
 
 	assert(argc <= 3 && " Error: Too many arguments given...");
 	
@@ -89,7 +87,7 @@ int main(int argc, char **argv) {
 		//-----Recv & Print-------------
 		bzero(response, BUFF_SIZE);
 		if ((numbytes = recv(sockfd,response, BUFF_SIZE-1,0)) == -1) {
-			perror("recv");
+			perror(" Error recv");
 			exit(1);
 		}
 
@@ -108,6 +106,11 @@ int main(int argc, char **argv) {
 
 
 		//-----Scanf & Send------------
+		//the request is a string of the command - exactly as the user typed them.
+		//validation of the command is done server-side, with the exception of "Q",
+		//that if found by the client - sends a shutdown signal to the server.
+		//the response is simply a string of the game status
+		//the game logic & status is kept on the server only.
 		bzero(request ,BUFF_SIZE);
 
 		bzero(input, 101);
@@ -118,22 +121,22 @@ int main(int argc, char **argv) {
 		//--Check if user ended game--
 		if (input[0] == 'Q' && input[1] == '\0') {
 			game_mode = STOP;
-			send(sockfd, input, sizeof(input), 0);
+			error_check(send(sockfd, input, sizeof(input), 0));
 			break;
 		}
 		//-----------------------------
 		
-		strcpy(response, input);
-		strcat(response, " ");
+		strcpy(request, input);
+		strcat(request, " ");
 
 		bzero(input, 101);
 		if (scanf("%100s", input) == 100) {
 			input[101] = '\0';
 		}
 
-		strcat(response, input);
+		strcat(request, input);
 
-		send(sockfd, response, strlen(response), 0);		
+		error_check(send(sockfd, request, strlen(request), 0));		
 		//-----------------------------
 		
 	}
@@ -142,5 +145,5 @@ int main(int argc, char **argv) {
 	shutdown(sockfd, SHUT_WR);
 
 	close(sockfd);
-	return 0;
+	return 1;
 }
