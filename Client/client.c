@@ -14,8 +14,7 @@ int main(int argc, char **argv) {
 	int sockfd, numbytes, input_len;
 	char response[BUFF_SIZE], request[BUFF_SIZE];
 	char *default_hostname = "localhost", *default_port = "6444", 
-			*hostname, *port;
-	char input[101], *end_check = NULL; //limit user to 100 chars to send
+		*hostname, *port, *end_check = NULL;
 
 	mode game_mode;
 
