@@ -11,6 +11,10 @@
 
 
 int main(int argc, char **argv) {
+	fd_set master;    // master file descriptor list
+    fd_set read_fds;  // temp file descriptor list for select()
+    int fdmax;        // maximum file descriptor number
+
 	int sockfd, numbytes, input_len;
 	char response[BUFF_SIZE], request[BUFF_SIZE];
 	char *default_hostname = "localhost", *default_port = "6444", 
@@ -38,6 +42,10 @@ int main(int argc, char **argv) {
 			break;
 	}
 	//-------------------------------------------------
+
+	FD_ZERO(&master);    // clear the master and temp sets
+    FD_ZERO(&read_fds);
+
 
 
 	//-----------Get possible server address-----------
@@ -79,62 +87,66 @@ int main(int argc, char **argv) {
 	}
 	//-------------------------------------------------
 	
+	FD_SET(fileno(stdin), &master);
+	FD_SET(sockfd, &master);
+	fdmax = sockfd;
 
-	//-----------------Connected - Game----------------
 	game_mode = RUN;
+	//-----------------Connected - Game----------------
 	while (game_mode == RUN) {
+		read_fds = master; // copy it
+		error_check(select(fdmax + 1, &read_fds, NULL, NULL, NULL));
+		
+		/**** Handle Request (from keyboard) ****/
+		if (FD_ISSET(fileno(stdin), &read_fds)) {
+			bzero(request ,BUFF_SIZE);
+			input_len = 0;
+			while ((request[input_len] = getchar()) != '\n') {
+				input_len++;
+				if (input_len == BUFF_SIZE - 1) {
+					while(getchar() != '\n'); //flush the rest of the input
+					break;
+				}
+			}
+			request[input_len] = '\0';
+			
+			//check if Q
+			if (request[0] == 'Q' && input_len == 1) {
+				game_mode = STOP;
+				break;
+			}
 
-		//-----Recv & Print-------------
-		bzero(response, BUFF_SIZE);
-		if ((numbytes = recv(sockfd,response, BUFF_SIZE-1,0)) == -1) {
-			perror(" Error recv");
-			exit(1);
+			error_check(send(sockfd, request, strlen(request), 0));		
 		}
 
-		response[numbytes] = '\0';
-		printf("%s\n", response);
-		//------------------------------
-
-
-		//------Check if game ended-----
-		end_check = strstr(response, "win!");
-		if (end_check != NULL) {
-			game_mode = STOP;
-			break;
-		}
-		//-----------------------------
-
-
-		//-----Scanf & Send------------
+		/**** Handle Response ****/
 		//the request is a string of the command - exactly as the user typed it.
 		//validation of the command is done server-side, with the exception of game endings,
 		//that if found by the client - sends a shutdown signal to the server.
 		//the response is simply a string of the game status
 		//the game logic & status is kept on the server only.
-		bzero(request ,BUFF_SIZE);
-		input_len = 0;
-		while ((request[input_len] = getchar()) != '\n') {
-			input_len++;
-			if (input_len == BUFF_SIZE - 1) {
-				while(getchar() != '\n'); //flush the rest of the input
+		if (FD_ISSET(sockfd, &read_fds)) {
+		
+			bzero(response, BUFF_SIZE);
+			if ((numbytes = recv(sockfd,response, BUFF_SIZE-1,0)) == -1) {
+				perror(" Error recv");
+				exit(1);
+			}
+			response[numbytes] = '\0';
+			printf("%s\n", response);
+			//------------------------------
+
+
+			//------Check if game ended-----
+			end_check = strstr(response, "win!");
+			if (end_check != NULL) {
+				game_mode = STOP;
 				break;
 			}
 		}
-		request[input_len] = '\0';
-		
-		//check if Q
-		if (request[0] == 'Q' && input_len == 1) {
-			game_mode = STOP;
-		}
-
-		error_check(send(sockfd, request, strlen(request), 0));		
-		//-----------------------------
-		
 	}
 	//-------------------------------------------------
-
 	shutdown(sockfd, SHUT_WR);
-
 	close(sockfd);
 	return 1;
 }
