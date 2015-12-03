@@ -12,6 +12,7 @@
 #define CLIENT_TURN "Your Turn:\n"
 #define WIN_SERVER "Server win!\n"
 #define CLIENT_WIN "You win!\n"
+#define TRUE 1
 
 int heap_a, heap_b, heap_c;
 server_mode mode;
@@ -140,6 +141,11 @@ int client_action(char *request, server_mode *mode) {
 }
 
 int main(int argc, char **argv) {
+	fd_set master;    // master file descriptor list
+    fd_set read_fds;  // temp file descriptor list for select()
+    int fdmax;        // maximum file descriptor number
+    int i, j;
+
 	int sock_fd, client_sock_fd;
 	socklen_t client_addr_size;
 	int byte_num;
@@ -185,11 +191,14 @@ int main(int argc, char **argv) {
 	}
 	//-------------------------
 
+	FD_ZERO(&master);    // clear the master and temp sets
+    FD_ZERO(&read_fds);
+
 
 	//----Setting up server----
 	my_addr.sin_family = AF_INET;
 	my_addr.sin_port = htons(server_port);
-	my_addr.sin_addr.s_addr = INADDR_ANY; //htonl(0x8443FC64);
+	my_addr.sin_addr.s_addr = INADDR_ANY;
 
 	sock_fd = socket(PF_INET, SOCK_STREAM, 0);
 
@@ -197,39 +206,73 @@ int main(int argc, char **argv) {
 
 	error_check(bind(sock_fd, (struct sockaddr *) &my_addr, sizeof(my_addr)));
 
+	// TODO: Check what happens when connections exceeded + change accordingly
 	error_check(listen(sock_fd, 1));
 
-	client_addr_size = sizeof(client_addr);
+	/*** New Select Server ***/
 
-	//Extra brackets due to '==' operator in the error_check macro
-	error_check((client_sock_fd = accept(sock_fd, (struct sockaddr *) &client_addr, &client_addr_size)));
-	
-	//-------------------------
+	FD_SET(sock_fd, &master);
 
-	//Client connected - send first response and start game-loop
-	bzero(response, BUFF_SIZE);
-	prepare_response();
-	strcat(response, CLIENT_TURN);
-	error_check(send(client_sock_fd, response, strlen(response), 0));
+	fdmax = sock_fd;
 
+	while(TRUE) {
+		read_fds = master; // copy it
+		error_check(select(fdmax + 1, &read_fds, NULL, NULL, NULL));
 
-	while (mode == RUN) {
-		bzero(response, BUFF_SIZE);
-		bzero(buff, BUFF_SIZE); // Clear the buffer before use.
-		error_check((byte_num = recv(client_sock_fd, buff, BUFF_SIZE - 1, 0)));
+		for(i = 0; i <= fdmax; i++) {
+			if (!FD_ISSET(i, &read_fds)) {
+				// The FD has no data to read
+				continue;
+			}
 
-		//printf("Size: %d, len: %d\nRecieved: %s\n", byte_num, strlen(buff), buff);
+			/**** Handle new connection ****/
+			if (i == sock_fd) {
+				client_addr_size = sizeof(client_addr);
+				error_check((client_sock_fd = accept(sock_fd, (struct sockaddr *) &client_addr, &client_addr_size)));
 
-		client_action(buff, &mode);
+				// Add new client to set
+				// TODO: Send i to client (count clients)
+				FD_SET(client_sock_fd, &master);
 
-		error_check(send(client_sock_fd, response, strlen(response), 0));
+				if (client_sock_fd > fdmax) {
+					fdmax = client_sock_fd;
+				}
+
+				continue;
+			}
+
+			/**** Handle Requests ****/
+			bzero(response, BUFF_SIZE);
+			bzero(buff, BUFF_SIZE); // Clear the buffer before use.
+			error_check((byte_num = recv(i, buff, BUFF_SIZE - 1, 0)));
+
+			if (byte_num == 0) {
+				// TODO: Handle client shutdown
+				close(i);
+				FD_CLR(i, &master);
+
+				continue;
+			}
+
+			for(j = 0; j <= fdmax; j++) {
+                // send to everyone!
+                if (FD_ISSET(j, &master)) {
+                    // except the sock_fd and ourselves
+                    if (j != sock_fd && j != i) {
+                        if (send(j, buff, byte_num, 0) == -1) {
+                            perror("send");
+                        }
+                    }
+                }
+            }
+		}
 	}
-	//----------------------------------------------------------
+
+	// TODO: close all connections
 
 	//Game Ended - close sockets
 	error_check((recv(client_sock_fd, buff, BUFF_SIZE - 1, 0))); //recv shutdown
 	close(sock_fd);
-	close(client_sock_fd);
 
 	return 1;
 }
