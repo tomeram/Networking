@@ -1,9 +1,9 @@
 Nim Online Game
 =======
 
-TODO list:
+Todo list fot the next build
 
-Server:
+## Server:
 
 1. Refuse extra connections
 
@@ -30,7 +30,7 @@ Server:
 3. Clean server shutdown.
 
 
-Client:
+## Client:
 
 1. Change to select architecture.
 
