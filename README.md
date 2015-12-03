@@ -1,3 +1,6 @@
+Nim Online Game
+=======
+
 TODO list:
 
 Server:
