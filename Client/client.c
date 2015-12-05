@@ -132,6 +132,12 @@ int main(int argc, char **argv) {
 				perror(" Error recv");
 				exit(1);
 			}
+
+			/** Server has closed the connection **/
+			if (numbytes == 0) {
+				break;
+			}
+
 			response[numbytes] = '\0';
 			printf("%s\n", response);
 			//------------------------------
