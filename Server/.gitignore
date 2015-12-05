@@ -1,2 +1,3 @@
 nim-server
 nim-server.o
+nim-server-funcs.o

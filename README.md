@@ -9,7 +9,7 @@ Todo list fot the next build
 
 2. Game
 	
-	a. Move logic to external file (include in header)
+	a. ~~Move logic to external file (include in header)~~
 
 	b. ~~Add game status - Waiting for clients~~
 		__Note: Check what to do if the fist client disconnects before second client connects.__
@@ -24,7 +24,7 @@ Todo list fot the next build
 
 
 	d. Game commands:
-	
+
 		i. 		Turn timeout. (On every cycle according to game state)
 
 		ii.		Wrong command - The player looses his turn.
