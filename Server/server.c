@@ -13,6 +13,8 @@
 #define WIN_SERVER "Server win!\n"
 #define CLIENT_WIN "You win!\n"
 #define REJECT_CON "Client rejected"
+#define CLIENT1_CONNECT "You are client 1\nWaiting to client 2 to connect"
+#define CLIENT2_CONNECT "You are client 2"
 #define TRUE 1
 
 int heap_a, heap_b, heap_c;
@@ -147,7 +149,7 @@ int main(int argc, char **argv) {
     int fdmax;        // maximum file descriptor number
     int i, j;
 
-	int sock_fd, client_sock_fd, open_cons = 0;
+	int sock_fd, client_sock_fd, open_cons = 0, client1, client2;
 	socklen_t client_addr_size;
 	int byte_num;
 	struct sockaddr_in my_addr, client_addr;
@@ -216,7 +218,9 @@ int main(int argc, char **argv) {
 
 	fdmax = sock_fd;
 
-	while(TRUE) {
+	mode = WAITING_CONS;
+
+	while(mode != STOP) {
 		read_fds = master; // copy it
 		error_check(select(fdmax + 1, &read_fds, NULL, NULL, NULL));
 
@@ -231,12 +235,19 @@ int main(int argc, char **argv) {
 				client_addr_size = sizeof(client_addr);
 				error_check((client_sock_fd = accept(sock_fd, (struct sockaddr *) &client_addr, &client_addr_size)));
 
-				/** Two clients connected, close connection. **/
 				if (open_cons == 2) {
+					/** Two clients connected, close connection. **/
 					error_check(send(client_sock_fd, REJECT_CON, strlen(REJECT_CON), 0));
 					shutdown(client_sock_fd, SHUT_WR);
 					close(client_sock_fd);
 					continue;
+				} else if (open_cons == 1) {
+					mode = RUN;
+					client2 = client_sock_fd;
+					error_check(send(client2, CLIENT2_CONNECT, strlen(CLIENT2_CONNECT), 0));
+				} else {
+					client1 = client_sock_fd;
+					error_check(send(client1, CLIENT1_CONNECT, strlen(CLIENT1_CONNECT), 0));
 				}
 
 				open_cons++;
@@ -262,6 +273,11 @@ int main(int argc, char **argv) {
 				close(i);
 				FD_CLR(i, &master);
 
+				continue;
+			}
+
+			if (mode != RUN) {
+				/** clear buffers and continue **/	
 				continue;
 			}
 

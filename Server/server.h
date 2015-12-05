@@ -16,6 +16,7 @@
 
 typedef enum {
 	RUN,
+	WAITING_CONS,
 	STOP
 } server_mode;
 

@@ -10,8 +10,8 @@ Todo list fot the next build
 2. Game
 	a. Move logic to external file (include in header)
 
-	b. Add gmae status - Waiting for clients
-		Note: Check what to do if the fist client disconnects before second client connects.
+	b. ~~Add game status - Waiting for clients~~
+		__Note: Check what to do if the fist client disconnects before second client connects.__
 
 	c. Messages:
 		i. 		Regex to check the message prefix.
