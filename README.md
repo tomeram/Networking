@@ -12,15 +12,17 @@ Todo list fot the next build
 	a. ~~Move logic to external file (include in header)~~
 
 	b. ~~Add game status - Waiting for clients~~
-		__Note: Check what to do if the fist client disconnects before second client connects.__
 
-	c. Messages:
+		__Note: Check what to do if the fist client disconnects before second client connects__
 
-		i. 		Regex to check the message prefix.
 
-		ii. 	Add correct prefix to sent message.
+	c. ~~Messages:~~
 
-		iii. 	Send the message.
+		i. 		~~Regex to check the message prefix.~~
+
+		ii. 	~~Add correct prefix to sent message.~~
+
+		iii. 	~~Send the message.~~
 
 
 	d. Game commands:
