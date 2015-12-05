@@ -24,6 +24,7 @@ Todo list fot the next build
 
 
 	d. Game commands:
+	
 		i. 		Turn timeout. (On every cycle according to game state)
 
 		ii.		Wrong command - The player looses his turn.
@@ -33,7 +34,7 @@ Todo list fot the next build
 		iv. 	Delete computer player.
 
 		v.		Fix winning message.
-		
+
 
 	e. Check how to handle quits and timeouts (what message to send to the other player).
 
