@@ -1,6 +1,9 @@
 #include "server.h"
 
-void prepare_response() {
+/**
+* Concatinates the heap status string to the response buffer
+*/
+void heapStatuses() {
 	char buff[2048] = {0, };
 
 	sprintf(buff, "Heap A: %d\nHeap B: %d\nHeap C: %d\n", heap_a, heap_b, heap_c);
@@ -8,34 +11,60 @@ void prepare_response() {
 	strcat(response, buff);
 }
 
-int checkIfMsg(char *request, int src_client, int dst_client) {
+
+/**
+* Cehcks if the request is a properly formatted message,
+* and send it to all the clients
+*/
+int checkIfMsg(char *request, int src_index) {
 	regex_t regex;
 	int regex_res;
+	char response[2048] = {0, };
+	int i;
 
-	error_check(regcomp(&regex, "^(MSG).*$", REG_EXTENDED));
+	error_check(regcomp(&regex, "^(MSG)\\s.*$", REG_EXTENDED));
 	regex_res = regexec(&regex, request, 0, NULL, 0);
+	regfree(&regex);
 
-	if (!regex_res) {
+	if (regex_res == REG_NOMATCH) {
+		// Not a message
+		printf("Here\n");
 		return 0;
+	}
+
+	// Send the message to all clients except the sender
+	sprintf(response, "Client %d: %s\n", (src_index + 1), (request + 4));
+	printf("Sent message:\n%s\n", response);
+
+	for (i = 0; i < CLIENT_NUM; i++) {
+		// Don't send message back to sender
+		if (i != src_index) {
+			error_check(send(clients[i], response, strlen(response), 0));
+		}
 	}
 
 	return 1;
 }
 
-//this function is to 'decrypt' the client's request
-//and perform the client & server move if request is valid.
 
-int client_action(char *request, server_mode *mode, int src_client, int dst_client) {
+/**
+* This function is to 'decrypt' the client's request
+* and perform the client & server move if request is valid.
+*/
+int client_action(char *request, server_mode *mode, int src_index) {
 	regex_t regex;
 	int *curr_heap, remove_num;
 	char *end_ptr;
-	int regex_res, is_msg;
-
+	int regex_res;
 
 	//---------Check if valid command & valid move--------
 
 	if (request[0] == 'Q' && strlen(request) == 1) {
 		*mode = STOP;
+		return 1;
+	}
+
+	if (checkIfMsg(request, src_index)) {
 		return 1;
 	}
 
@@ -45,19 +74,16 @@ int client_action(char *request, server_mode *mode, int src_client, int dst_clie
 	error_check(regcomp(&regex, "^[A-C]\\s([0-9]{1,4})$", REG_EXTENDED));
 
 	regex_res = regexec(&regex, request, 0, NULL, 0);
-	is_msg = checkIfMsg(request, src_client, dst_client);
+	regfree(&regex);
 
 	//if Invalid command
-	if (regex_res == REG_NOMATCH && !is_msg) {
+	if (regex_res == REG_NOMATCH) {
 		strcat(response, MOVE_ERR);
-		prepare_response();
+		heapStatuses();
 		strcat(response, CLIENT_TURN);
-		regfree(&regex);
 
 		return 0;
 	}
-
-	regfree(&regex);
 
 	//Else - Valid command.
 	switch (request[0]) {
@@ -80,10 +106,9 @@ int client_action(char *request, server_mode *mode, int src_client, int dst_clie
 	if (end_ptr == &request[2] || remove_num > 1000 || remove_num <= 0 ||
 	 	remove_num > *curr_heap) {
 		strcat(response, MOVE_ERR);
-		prepare_response();
+		heapStatuses();
 		strcat(response, CLIENT_TURN);
 
-		regfree(&regex);
 
 		return 0;
 	}
@@ -97,7 +122,7 @@ int client_action(char *request, server_mode *mode, int src_client, int dst_clie
 
 	//check client win
 	if (heap_a == 0 && heap_b == 0 && heap_c == 0) {
-		prepare_response();
+		heapStatuses();
 		strcat(response, CLIENT_WIN);
 		*mode = STOP;
 
@@ -119,7 +144,7 @@ int client_action(char *request, server_mode *mode, int src_client, int dst_clie
 
 	//check computer win
 	if (heap_a == 0 && heap_b == 0 && heap_c == 0) {
-		prepare_response();
+		heapStatuses();
 		strcat(response, WIN_SERVER);
 		*mode = STOP;
 
@@ -128,7 +153,7 @@ int client_action(char *request, server_mode *mode, int src_client, int dst_clie
 	//-----------------
 
 	strcat(response, MOVE_OK);
-	prepare_response();
+	heapStatuses();
 
 	strcat(response, CLIENT_TURN);
 

@@ -1,6 +1,8 @@
 #include "server.h"
 
 int heap_a, heap_b, heap_c;
+int clients[CLIENT_NUM];
+int client_turn = 0;
 server_mode mode;
 char response[BUFF_SIZE];
 
@@ -10,11 +12,11 @@ int main(int argc, char **argv) {
     int fdmax;        // maximum file descriptor number
     int i, j;
 
-	int sock_fd, client_sock_fd, open_cons = 0, clients[CLIENT_NUM], client_index, client_turn = 0;
+	int sock_fd, client_sock_fd, open_cons = 0, client_index;
 	socklen_t client_addr_size;
 	int byte_num;
 	struct sockaddr_in my_addr, client_addr;
-	char buff[BUFF_SIZE];
+	char request[BUFF_SIZE];
 
 	int server_port = 6444;
 	char *end_ptr;
@@ -97,7 +99,7 @@ int main(int argc, char **argv) {
 				error_check((client_sock_fd = accept(sock_fd, (struct sockaddr *) &client_addr, &client_addr_size)));
 
 				if (open_cons == CLIENT_NUM) {
-					/** Two clients connected, close connection. **/
+					/** Max clients connected, close connection. **/
 					error_check(send(client_sock_fd, REJECT_CON, strlen(REJECT_CON), 0));
 					shutdown(client_sock_fd, SHUT_WR);
 					close(client_sock_fd);
@@ -106,8 +108,9 @@ int main(int argc, char **argv) {
 					clients[open_cons] = client_sock_fd;
 					error_check(send(clients[open_cons], CLIENT2_CONNECT, strlen(CLIENT2_CONNECT), 0));
 
+					FD_SET(client_sock_fd, &master);
 					bzero(response, BUFF_SIZE);
-					prepare_response();
+					heapStatuses();
 
 					for (client_index = 0; client_index < CLIENT_NUM; client_index++) {
 						error_check(send(clients[client_index], response, strlen(response), 0));
@@ -133,8 +136,8 @@ int main(int argc, char **argv) {
 
 			/**** Handle Requests ****/
 			bzero(response, BUFF_SIZE);
-			bzero(buff, BUFF_SIZE); // Clear the buffer before use.
-			error_check((byte_num = recv(i, buff, BUFF_SIZE - 1, 0)));
+			bzero(request, BUFF_SIZE); // Clear the buffer before use.
+			error_check((byte_num = recv(i, request, BUFF_SIZE - 1, 0)));
 
 			if (byte_num == 0) {
 				// TODO: Handle client shutdown
@@ -144,24 +147,32 @@ int main(int argc, char **argv) {
 				continue;
 			}
 
-			for(j = 0; j <= fdmax; j++) {
-                // send to everyone!
-                if (FD_ISSET(j, &master)) {
-                    // except the sock_fd and ourselves
-                    if (j != sock_fd && j != i) {
-                        if (send(j, buff, byte_num, 0) == -1) {
-                            perror("send");
-                        }
-                    }
-                }
-            }
+			for (j = 0; j < CLIENT_NUM; j++) {
+				if (clients[j] == i) {
+					client_action(request, &mode, j);
+					break;
+				}
+			}
+
+
+			// for(j = 0; j <= fdmax; j++) {
+   //              // send to everyone!
+   //              if (FD_ISSET(j, &master)) {
+   //                  // except the sock_fd and ourselves
+   //                  if (j != sock_fd && j != i) {
+   //                      if (send(j, buff, byte_num, 0) == -1) {
+   //                          perror("send");
+   //                      }
+   //                  }
+   //              }
+   //          }
 		}
 	}
 
 	// TODO: close all connections
 
 	//Game Ended - close sockets
-	error_check((recv(client_sock_fd, buff, BUFF_SIZE - 1, 0))); //recv shutdown
+	error_check((recv(client_sock_fd, request, BUFF_SIZE - 1, 0))); //recv shutdown
 	close(sock_fd);
 
 	return 1;

@@ -39,11 +39,13 @@ typedef enum {
 } server_mode;
 
 extern int heap_a, heap_b, heap_c;
+extern int clients[];
+extern int client_turn;
 extern server_mode mode;
 extern char response[BUFF_SIZE];
 
 // Functions
-void prepare_response();
-int client_action(char *request, server_mode *mode, int src_client, int dst_client);
+void heapStatuses();
+int client_action(char *request, server_mode *mode, int src_index);
 
 #endif
