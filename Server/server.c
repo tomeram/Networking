@@ -10,7 +10,7 @@ int main(int argc, char **argv) {
     int fdmax;        // maximum file descriptor number
     int i, j;
 
-	int sock_fd, client_sock_fd, open_cons = 0, client1, client2;
+	int sock_fd, client_sock_fd, open_cons = 0, clients[CLIENT_NUM], client_index, client_turn = 0;
 	socklen_t client_addr_size;
 	int byte_num;
 	struct sockaddr_in my_addr, client_addr;
@@ -96,25 +96,26 @@ int main(int argc, char **argv) {
 				client_addr_size = sizeof(client_addr);
 				error_check((client_sock_fd = accept(sock_fd, (struct sockaddr *) &client_addr, &client_addr_size)));
 
-				if (open_cons == 2) {
+				if (open_cons == CLIENT_NUM) {
 					/** Two clients connected, close connection. **/
 					error_check(send(client_sock_fd, REJECT_CON, strlen(REJECT_CON), 0));
 					shutdown(client_sock_fd, SHUT_WR);
 					close(client_sock_fd);
 					continue;
-				} else if (open_cons == 1) {
-					mode = CLIENT_1;
-					client2 = client_sock_fd;
-					error_check(send(client2, CLIENT2_CONNECT, strlen(CLIENT2_CONNECT), 0));
+				} else if (open_cons < CLIENT_NUM && open_cons > 0) {
+					clients[open_cons] = client_sock_fd;
+					error_check(send(clients[open_cons], CLIENT2_CONNECT, strlen(CLIENT2_CONNECT), 0));
 
 					bzero(response, BUFF_SIZE);
 					prepare_response();
-					error_check(send(client1, response, strlen(response), 0));
-					error_check(send(client2, response, strlen(response), 0));
+
+					for (client_index = 0; client_index < CLIENT_NUM; client_index++) {
+						error_check(send(clients[client_index], response, strlen(response), 0));
+					}
 					
 				} else {
-					client1 = client_sock_fd;
-					error_check(send(client1, CLIENT1_CONNECT, strlen(CLIENT1_CONNECT), 0));
+					clients[0] = client_sock_fd;
+					error_check(send(clients[0], CLIENT1_CONNECT, strlen(CLIENT1_CONNECT), 0));
 				}
 
 				open_cons++;

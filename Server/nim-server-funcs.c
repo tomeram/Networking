@@ -8,14 +8,28 @@ void prepare_response() {
 	strcat(response, buff);
 }
 
+int checkIfMsg(char *request, int src_client, int dst_client) {
+	regex_t regex;
+	int regex_res;
+
+	error_check(regcomp(&regex, "^(MSG).*$", REG_EXTENDED));
+	regex_res = regexec(&regex, request, 0, NULL, 0);
+
+	if (!regex_res) {
+		return 0;
+	}
+
+	return 1;
+}
+
 //this function is to 'decrypt' the client's request
 //and perform the client & server move if request is valid.
 
-int client_action(char *request, server_mode *mode) {
+int client_action(char *request, server_mode *mode, int src_client, int dst_client) {
 	regex_t regex;
 	int *curr_heap, remove_num;
 	char *end_ptr;
-	int regex_res;
+	int regex_res, is_msg;
 
 
 	//---------Check if valid command & valid move--------
@@ -31,10 +45,10 @@ int client_action(char *request, server_mode *mode) {
 	error_check(regcomp(&regex, "^[A-C]\\s([0-9]{1,4})$", REG_EXTENDED));
 
 	regex_res = regexec(&regex, request, 0, NULL, 0);
-	//printf("%d\n", regex_res);
+	is_msg = checkIfMsg(request, src_client, dst_client);
 
 	//if Invalid command
-	if (regex_res == REG_NOMATCH) {
+	if (regex_res == REG_NOMATCH && !is_msg) {
 		strcat(response, MOVE_ERR);
 		prepare_response();
 		strcat(response, CLIENT_TURN);

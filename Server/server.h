@@ -30,12 +30,11 @@
 #define CLIENT1_CONNECT "You are client 1\nWaiting to client 2 to connect\n"
 #define CLIENT2_CONNECT "You are client 2\n"
 #define TRUE 1
+#define CLIENT_NUM 2
 
 typedef enum {
 	STOP,
 	WAITING_CONS,
-	CLIENT_1,
-	CLIENT_2,
 	RUN
 } server_mode;
 
@@ -45,6 +44,6 @@ extern char response[BUFF_SIZE];
 
 // Functions
 void prepare_response();
-int client_action(char *request, server_mode *mode);
+int client_action(char *request, server_mode *mode, int src_client, int dst_client);
 
 #endif
