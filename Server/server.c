@@ -12,6 +12,7 @@
 #define CLIENT_TURN "Your Turn:\n"
 #define WIN_SERVER "Server win!\n"
 #define CLIENT_WIN "You win!\n"
+#define REJECT_CON "Client rejected"
 #define TRUE 1
 
 int heap_a, heap_b, heap_c;
@@ -146,7 +147,7 @@ int main(int argc, char **argv) {
     int fdmax;        // maximum file descriptor number
     int i, j;
 
-	int sock_fd, client_sock_fd;
+	int sock_fd, client_sock_fd, open_cons = 0;
 	socklen_t client_addr_size;
 	int byte_num;
 	struct sockaddr_in my_addr, client_addr;
@@ -207,7 +208,7 @@ int main(int argc, char **argv) {
 	error_check(bind(sock_fd, (struct sockaddr *) &my_addr, sizeof(my_addr)));
 
 	// TODO: Check what happens when connections exceeded + change accordingly
-	error_check(listen(sock_fd, 1));
+	error_check(listen(sock_fd, 10));
 
 	/*** New Select Server ***/
 
@@ -229,6 +230,16 @@ int main(int argc, char **argv) {
 			if (i == sock_fd) {
 				client_addr_size = sizeof(client_addr);
 				error_check((client_sock_fd = accept(sock_fd, (struct sockaddr *) &client_addr, &client_addr_size)));
+
+				/** Two clients connected, close connection. **/
+				if (open_cons == 2) {
+					error_check(send(client_sock_fd, REJECT_CON, strlen(REJECT_CON), 0));
+					shutdown(client_sock_fd, SHUT_WR);
+					close(client_sock_fd);
+					continue;
+				}
+
+				open_cons++;
 
 				// Add new client to set
 				// TODO: Send i to client (count clients)

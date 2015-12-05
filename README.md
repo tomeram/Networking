@@ -5,7 +5,7 @@ Todo list fot the next build
 
 ## Server
 
-1. Refuse extra connections
+1. ~~Refuse extra connections~~
 
 2. Game
 	a. Move logic to external file (include in header)
