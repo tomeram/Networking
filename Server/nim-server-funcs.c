@@ -44,6 +44,10 @@ int checkIfMsg(char *request, int src_index) {
 	return 1;
 }
 
+
+/**
+* Advance game to next turn, and notify the current client
+*/
 void moveToNextTurn() {
 	client_turn = (client_turn + 1) % CLIENT_NUM;
 	
@@ -51,6 +55,12 @@ void moveToNextTurn() {
 }
 
 
+/**
+* Notifies all clients that they won/lost the game
+* Arguments:
+*	int winner_index 	- The winner index
+* 	server_mode *mode	- The server mode so it will change to STOP
+*/
 void clientWon(int winner_index, server_mode *mode) {
 	int i;
 
@@ -175,18 +185,12 @@ int client_action(char *request, server_mode *mode, int src_index) {
 		}
 	}
 
-	//check client win
+	// Check if client won
 	if (heap_a == 0 && heap_b == 0 && heap_c == 0) {
 		clientWon(src_index, mode);
 
 		return 1;
 	}
-	// //---------------------------------------------------
-
-	// strcat(response, MOVE_OK);
-	// heapStatuses();
-
-	// strcat(response, CLIENT_TURN);
 
 	moveToNextTurn();
 

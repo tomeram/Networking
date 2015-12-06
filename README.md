@@ -17,10 +17,10 @@ Todo list fot the next build
 		* ~~Send the message.~~
 	4. Game commands:
 		* Turn timeout. (On every cycle according to game state)
-		* Wrong command - The player looses his turn.
-		* Ignore commands out of turn + Document this behavior.
-		* Delete computer player.
-		* Fix winning message.
+		* ~~Wrong command - The player looses his turn.~~
+		* ~~Ignore commands out of turn~~ + Document this behavior.
+		* ~~Delete computer player~~
+		* ~~Fix winning message~~
 	5. Check how to handle quits and timeouts (what message to send to the other player).
 3. Clean server shutdown.
 
