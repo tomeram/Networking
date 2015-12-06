@@ -2,7 +2,7 @@
 
 int heap_a, heap_b, heap_c;
 int clients[CLIENT_NUM];
-int client_turn = 0;
+int client_turn = -1;
 server_mode mode;
 char response[BUFF_SIZE];
 
@@ -115,6 +115,8 @@ int main(int argc, char **argv) {
 					for (client_index = 0; client_index < CLIENT_NUM; client_index++) {
 						error_check(send(clients[client_index], response, strlen(response), 0));
 					}
+
+					moveToNextTurn();
 					
 				} else {
 					clients[0] = client_sock_fd;
@@ -147,25 +149,14 @@ int main(int argc, char **argv) {
 				continue;
 			}
 
+			// The loop will find the index of the current client
+			// and send it to the action function
 			for (j = 0; j < CLIENT_NUM; j++) {
 				if (clients[j] == i) {
 					client_action(request, &mode, j);
 					break;
 				}
 			}
-
-
-			// for(j = 0; j <= fdmax; j++) {
-   //              // send to everyone!
-   //              if (FD_ISSET(j, &master)) {
-   //                  // except the sock_fd and ourselves
-   //                  if (j != sock_fd && j != i) {
-   //                      if (send(j, buff, byte_num, 0) == -1) {
-   //                          perror("send");
-   //                      }
-   //                  }
-   //              }
-   //          }
 		}
 	}
 

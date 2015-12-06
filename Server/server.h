@@ -22,13 +22,17 @@
 
 #define BUFF_SIZE 2048
 #define MOVE_ERR "Ileagal move\n"
+#define OTHER_CLIENT_MOVE_ERR "Client %d made an illegal move\n"
 #define MOVE_OK "Move accepted\n"
+#define MOVE_NOTIFY "Client %d takes %d cubes from Heap %c\n"
 #define CLIENT_TURN "Your Turn:\n"
 #define WIN_SERVER "Server win!\n"
 #define CLIENT_WIN "You win!\n"
+#define CLIENT_LOSE "You lose!\n"
 #define REJECT_CON "Client rejected"
 #define CLIENT1_CONNECT "You are client 1\nWaiting to client 2 to connect\n"
 #define CLIENT2_CONNECT "You are client 2\n"
+#define OUT_OF_TURN_MSG "Please wait your turn\n"
 #define TRUE 1
 #define CLIENT_NUM 2
 
@@ -46,6 +50,7 @@ extern char response[BUFF_SIZE];
 
 // Functions
 void heapStatuses();
+void moveToNextTurn();
 int client_action(char *request, server_mode *mode, int src_index);
 
 #endif

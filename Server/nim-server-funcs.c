@@ -28,13 +28,11 @@ int checkIfMsg(char *request, int src_index) {
 
 	if (regex_res == REG_NOMATCH) {
 		// Not a message
-		printf("Here\n");
 		return 0;
 	}
 
 	// Send the message to all clients except the sender
 	sprintf(response, "Client %d: %s\n", (src_index + 1), (request + 4));
-	printf("Sent message:\n%s\n", response);
 
 	for (i = 0; i < CLIENT_NUM; i++) {
 		// Don't send message back to sender
@@ -46,25 +44,56 @@ int checkIfMsg(char *request, int src_index) {
 	return 1;
 }
 
+void moveToNextTurn() {
+	client_turn = (client_turn + 1) % CLIENT_NUM;
+	
+	error_check(send(clients[client_turn], CLIENT_TURN, strlen(CLIENT_TURN), 0));
+}
+
+
+void clientWon(int winner_index, server_mode *mode) {
+	int i;
+
+	error_check(send(clients[winner_index], CLIENT_WIN, strlen(CLIENT_WIN), 0));
+
+	for (i = 0; i < CLIENT_NUM; i++) {
+		if (i != winner_index) {
+			error_check(send(clients[i], CLIENT_LOSE, strlen(CLIENT_LOSE), 0));
+		}
+	}
+
+	*mode = STOP;
+}
 
 /**
 * This function is to 'decrypt' the client's request
 * and perform the client & server move if request is valid.
+* 
+* Argunemts:
+* 	char *request 		- The request string from the client
+* 	server_mode *mode 	- The current mode of the game
+* 	int src_index		- The client number
 */
 int client_action(char *request, server_mode *mode, int src_index) {
 	regex_t regex;
 	int *curr_heap, remove_num;
 	char *end_ptr;
 	int regex_res;
-
-	//---------Check if valid command & valid move--------
+	int i;
 
 	if (request[0] == 'Q' && strlen(request) == 1) {
-		*mode = STOP;
+		clientWon(((src_index + 1) % CLIENT_NUM ), mode);
+
 		return 1;
 	}
 
 	if (checkIfMsg(request, src_index)) {
+		return 1;
+	}
+
+	if (client_turn != src_index) {
+		// Handle out of turn plays
+		error_check(send(clients[src_index], OUT_OF_TURN_MSG, strlen(OUT_OF_TURN_MSG), 0));
 		return 1;
 	}
 
@@ -76,16 +105,12 @@ int client_action(char *request, server_mode *mode, int src_index) {
 	regex_res = regexec(&regex, request, 0, NULL, 0);
 	regfree(&regex);
 
-	//if Invalid command
+	// if Invalid command
 	if (regex_res == REG_NOMATCH) {
-		strcat(response, MOVE_ERR);
-		heapStatuses();
-		strcat(response, CLIENT_TURN);
-
-		return 0;
+		goto ERROR;
 	}
 
-	//Else - Valid command.
+	// Else - Valid command.
 	switch (request[0]) {
 		case 'A':
 			curr_heap = &heap_a;
@@ -102,61 +127,69 @@ int client_action(char *request, server_mode *mode, int src_index) {
 
 	error_check((remove_num = strtol(&request[2], &end_ptr, 10)));
 	
-	//----Check if valid move----
+	//----------------Check if valid move----------------
 	if (end_ptr == &request[2] || remove_num > 1000 || remove_num <= 0 ||
 	 	remove_num > *curr_heap) {
-		strcat(response, MOVE_ERR);
-		heapStatuses();
-		strcat(response, CLIENT_TURN);
 
+		ERROR:
+
+		// Send error to current user
+		sprintf(response, MOVE_ERR);
+		error_check(send(clients[src_index], response, strlen(response), 0));
+
+		// Notify other users about error
+		sprintf(response, OTHER_CLIENT_MOVE_ERR, (src_index + 1));
+
+		for (i = 0; i < CLIENT_NUM; i++) {
+			if (i != src_index) {
+				error_check(send(clients[i], response, strlen(response), 0));
+			}
+		}
+
+		moveToNextTurn();
 
 		return 0;
 	}
 
-	//-----------------------------------------------------
+	//---------------------------------------------------
 
 
-	//-------------valid move - Continue with the game-----------
-	//client move
+	//------- valid move - Continue with the game -------
 	*curr_heap -= remove_num;
+
+	// Notify client
+	bzero(response, BUFF_SIZE);
+	sprintf(response, MOVE_OK);
+	heapStatuses();
+
+	error_check(send(clients[src_index], response, strlen(response), 0));
+
+	// Notify other clients
+	bzero(response, BUFF_SIZE);
+	sprintf(response, MOVE_NOTIFY, (src_index + 1), remove_num, request[0]);
+	heapStatuses();
+
+	for (i = 0; i < CLIENT_NUM; i++) {
+		if (i != src_index) {
+			error_check(send(clients[i], response, strlen(response), 0));
+		}
+	}
 
 	//check client win
 	if (heap_a == 0 && heap_b == 0 && heap_c == 0) {
-		heapStatuses();
-		strcat(response, CLIENT_WIN);
-		*mode = STOP;
+		clientWon(src_index, mode);
 
 		return 1;
 	}
-	//-----------------
+	// //---------------------------------------------------
 
-	//Computer's Move
-	curr_heap = &heap_a;
+	// strcat(response, MOVE_OK);
+	// heapStatuses();
 
-	if (heap_b > heap_a) {
-		curr_heap = &heap_b;
-	} 
-	if (*curr_heap < heap_c) {
-		curr_heap = &heap_c;
-	}
+	// strcat(response, CLIENT_TURN);
 
-	*curr_heap -= 1;
-
-	//check computer win
-	if (heap_a == 0 && heap_b == 0 && heap_c == 0) {
-		heapStatuses();
-		strcat(response, WIN_SERVER);
-		*mode = STOP;
-
-		return 1;
-	}
-	//-----------------
-
-	strcat(response, MOVE_OK);
-	heapStatuses();
-
-	strcat(response, CLIENT_TURN);
+	moveToNextTurn();
 
 	return 1;
-	//-----------------------------------------------------
+	//---------------------------------------------------
 }

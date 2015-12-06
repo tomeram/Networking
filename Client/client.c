@@ -112,11 +112,13 @@ int main(int argc, char **argv) {
 			
 			//check if Q
 			if (request[0] == 'Q' && input_len == 1) {
+				error_check(send(sockfd, "Q", strlen("Q"), 0));
+
 				game_mode = STOP;
 				break;
 			}
 
-			error_check(send(sockfd, request, strlen(request), 0));		
+			error_check(send(sockfd, request, strlen(request), 0));
 		}
 
 		/**** Handle Response ****/
