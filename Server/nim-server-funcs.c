@@ -94,6 +94,9 @@ int client_action(char *request, server_mode *mode, int src_index) {
 	int i;
 
 	if (request[0] == 'Q' && strlen(request) == 1) {
+		bzero(response, BUFF_SIZE);
+		sprintf(response, CLIENT_DISCONNECTED, client_turn + 1);
+		error_check(send(clients[(src_index + 1) % 2], response, strlen(response), 0));
 		clientWon(((src_index + 1) % CLIENT_NUM ), mode);
 
 		return 1;

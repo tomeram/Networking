@@ -99,14 +99,19 @@ int main(int argc, char **argv) {
 			turn_time = (float) curr_time - turn_start;
 
 			if (turn_time >= 60) {
+				bzero(response, BUFF_SIZE);
+				sprintf(response, CLIENT_DISCONNECTED, client_turn + 1);
+				error_check(send(clients[(client_turn + 1) % 2], response, strlen(response), 0));
+
 				clientWon(((client_turn + 1) % 2), &mode);
+				break;
 			}
 		}
 
 		read_fds = master; // copy complete fd set to the sent fd set
 		error_check(select(fdmax + 1, &read_fds, NULL, NULL, &select_time));
 		// restore timeout struct
-		select_time.tv_sec = 5;
+		select_time.tv_sec = 1;
 		select_time.tv_usec = 0;
 
 		for(i = 0; i <= fdmax; i++) {
