@@ -6,6 +6,9 @@ int client_turn = -1;
 server_mode mode;
 char response[BUFF_SIZE];
 
+// Time checking variables
+time_t turn_start, curr_time;
+
 int main(int argc, char **argv) {
 	fd_set master;    // master file descriptor list
     fd_set read_fds;  // temp file descriptor list for select()
@@ -20,6 +23,12 @@ int main(int argc, char **argv) {
 
 	int server_port = 6444;
 	char *end_ptr;
+
+	float turn_time;
+	struct timeval select_time;
+
+	select_time.tv_sec = 5;
+	select_time.tv_usec = 0;
 
 	//-----Validating inputs-----
 	assert(argc >= 4 && argc <= 5);
@@ -84,8 +93,23 @@ int main(int argc, char **argv) {
 	mode = WAITING_CONS;
 
 	while(mode != STOP) {
-		read_fds = master; // copy it
-		error_check(select(fdmax + 1, &read_fds, NULL, NULL, NULL));
+		// Check if turn timeout
+		if (mode == RUN) {
+			curr_time = time(NULL);
+			turn_time = (float) curr_time - turn_start;
+
+			printf("in RUN, turn_time: %f\n", turn_time);
+
+			if (turn_time >= 10) {
+				printf("turn timeout\n");
+			}
+		}
+
+		read_fds = master; // copy complete fd set to the sent fd set
+		error_check(select(fdmax + 1, &read_fds, NULL, NULL, &select_time));
+		// restore timeout struct
+		select_time.tv_sec = 5;
+		select_time.tv_usec = 0;
 
 		for(i = 0; i <= fdmax; i++) {
 			if (!FD_ISSET(i, &read_fds)) {
@@ -111,6 +135,8 @@ int main(int argc, char **argv) {
 					FD_SET(client_sock_fd, &master);
 					bzero(response, BUFF_SIZE);
 					heapStatuses();
+
+					mode = RUN;
 
 					for (client_index = 0; client_index < CLIENT_NUM; client_index++) {
 						error_check(send(clients[client_index], response, strlen(response), 0));

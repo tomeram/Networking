@@ -13,6 +13,8 @@
 #include <string.h>
 #include <assert.h>
 #include <regex.h>
+#include <time.h>
+#include <sys/time.h>
 
 // This is an error checking macro.
 #define error_check(res) if (res < 0) { 	\
@@ -47,6 +49,7 @@ extern int clients[];
 extern int client_turn;
 extern server_mode mode;
 extern char response[BUFF_SIZE];
+extern time_t turn_start, curr_time;
 
 // Functions
 void heapStatuses();

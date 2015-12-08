@@ -52,6 +52,8 @@ void moveToNextTurn() {
 	client_turn = (client_turn + 1) % CLIENT_NUM;
 	
 	error_check(send(clients[client_turn], CLIENT_TURN, strlen(CLIENT_TURN), 0));
+
+	turn_start = time(NULL);
 }
 
 
