@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
 
 	mode = WAITING_CONS;
 
-	while(mode != STOP) {
+	while(mode != STOP || open_cons > 0) {
 		// Check if turn timeout
 		if (mode == RUN) {
 			curr_time = time(NULL);
@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
 				client_addr_size = sizeof(client_addr);
 				error_check((client_sock_fd = accept(sock_fd, (struct sockaddr *) &client_addr, &client_addr_size)));
 
-				if (open_cons == CLIENT_NUM) {
+				if (open_cons == CLIENT_NUM || mode == STOP) {
 					/** Max clients connected, close connection. **/
 					error_check(send(client_sock_fd, REJECT_CON, strlen(REJECT_CON), 0));
 					shutdown(client_sock_fd, SHUT_WR);
@@ -175,6 +175,8 @@ int main(int argc, char **argv) {
 				close(i);
 				FD_CLR(i, &master);
 
+				open_cons--;
+
 				continue;
 			}
 
@@ -189,10 +191,6 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	// TODO: close all connections
-
-	//Game Ended - close sockets
-	error_check((recv(client_sock_fd, request, BUFF_SIZE - 1, 0))); //recv shutdown
 	close(sock_fd);
 
 	return 1;
