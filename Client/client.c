@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
 	int sockfd, numbytes, input_len;
 	char response[BUFF_SIZE], request[BUFF_SIZE];
 	char *default_hostname = "localhost", *default_port = "6444", 
-		*hostname, *port, *end_check = NULL;
+		*hostname, *port;
 
 	mode game_mode;
 
@@ -146,8 +146,7 @@ int main(int argc, char **argv) {
 
 
 			//------Check if game ended-----
-			end_check = strstr(response, "win!");
-			if (end_check != NULL) {
+			if (strstr(response, "win!") != NULL || strstr(response, "lose!")) {
 				game_mode = STOP;
 				break;
 			}
