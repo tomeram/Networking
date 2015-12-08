@@ -55,5 +55,6 @@ extern time_t turn_start, curr_time;
 void heapStatuses();
 void moveToNextTurn();
 int client_action(char *request, server_mode *mode, int src_index);
+void clientWon();
 
 #endif

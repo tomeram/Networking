@@ -98,10 +98,8 @@ int main(int argc, char **argv) {
 			curr_time = time(NULL);
 			turn_time = (float) curr_time - turn_start;
 
-			printf("in RUN, turn_time: %f\n", turn_time);
-
-			if (turn_time >= 10) {
-				printf("turn timeout\n");
+			if (turn_time >= 60) {
+				clientWon(((client_turn + 1) % 2), &mode);
 			}
 		}
 
