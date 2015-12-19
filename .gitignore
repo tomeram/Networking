@@ -1,2 +1,2 @@
-nim
-nim.o
+tftp-server
+tftp-server.o
