@@ -462,6 +462,17 @@ void write_request() {
 
 		parseInput();
 
+		if (status == ERROR) {
+			printf("send Error: %s\n", strerror(errno));
+			res_data.errorCode = tftp_error;
+			bzero(res_data.data, sizeof(res_data.data));
+			strcat(res_data.data, "An unknown error has occured");
+
+			status = OK;
+
+			continue;
+		}
+
 		// Wrong opcode recieved
 		if (tftp_request.opcode != OPCODE_DATA) {
 			printf("File already exists error\n");
