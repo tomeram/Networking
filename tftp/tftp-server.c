@@ -104,7 +104,7 @@ void read_request() {
 		}
 
 		status = READ;
-		block = 0;
+		block = 1;
 
 		//TODO - timeout
 	}
@@ -143,7 +143,7 @@ void read_request() {
 	while (read_bytes > 0 && total_bytes < MAX_DATA_PACKET) {
 		read_bytes = read(file_fd, data_response.data + total_bytes, MAX_DATA_PACKET - total_bytes);
 		total_bytes += read_bytes;
-		printf("DEBUG: read %d bytes!\n", total_bytes);
+		//printf("DEBUG: read %d bytes!\n", total_bytes);
 	}
 
 	//error check: failed to read from file
@@ -157,7 +157,7 @@ void read_request() {
 	}
 
 	response_len = sizeof(opcode) + sizeof(block) + total_bytes;
-	if (sendto(sock_connection, &data_response, response_len, 0, (struct sockaddr*)&tftp_clientaddr, clientlen) == -1) {
+	if (sendto(sock_connection, (char *)&data_response, response_len, 0, (struct sockaddr*)&tftp_clientaddr, clientlen) == -1) {
 		printf("send Error: %s\n", strerror(errno));
 		error_check(close(file_fd));
 		error_check(close(sock_connection));
@@ -166,12 +166,12 @@ void read_request() {
 		return;
 	}
 
-	printf("sent?\n");
-
+	
 	if (total_bytes < MAX_DATA_PACKET) {
 		close(file_fd);
 	}
 
+	return;
 }
 
 void write_request() {
@@ -190,7 +190,7 @@ void new_request() {
 	bzero(filename, MAX_DATA_PACKET+1);
 	bzero(mode,MAX_DATA_PACKET+1);
 
-	printf("DEBUG: new request!\n");
+	//printf("DEBUG: new request!\n");
 
 	//error check 1: we got the full "request"
 	if (request.data[req_len - sizeof(opcode) -1] != '\0') {
@@ -250,7 +250,7 @@ void handle_request() {
 	request.opcode = ntohs(request.opcode); //TODO <--check if needed?... seems to conver network to short?
 
 	if (request.opcode == OPCODE_ERROR) {
-		//TODO
+		//client sent error - ignore...
 		return;
 	}
 
@@ -268,11 +268,11 @@ void handle_request() {
 			break;
 
 		case ERROR:
-			printf("todo- error");
 			//TODO not sure if needs to do something, this is here cause of gcc warning :)
 			break;
-	}	
-
+	}
+	
+	return;
 }
 
 int main(int argc, char **argv) {
@@ -295,6 +295,8 @@ int main(int argc, char **argv) {
 		}
 
 		if (status == ERROR) {
+			printf("error!\n");
+			status = OK; //bypass till to do
 			//TODO - send error
 		}
 
