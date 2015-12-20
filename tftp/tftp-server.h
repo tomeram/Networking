@@ -48,11 +48,7 @@ typedef enum {
 	ERROR_ILLEGAL_OP = 4,
 	ERROR_UNKNOWN_ID = 5,
 	ERROR_FILE_EXISTS = 6,
-	ERROR_NO_USER = 7, 
-	//our additions
-	ERROR_BAD_REQUEST = 8,
-	ERROR_WRONG_MODE = 9,
-	ERROR_BAD_ATTEMPTS = 10
+	ERROR_NO_USER = 7
 } TFTP_ERROR;
 
 
@@ -74,8 +70,6 @@ typedef struct {
 	short block_num;
 	char data[MAX_DATA_PACKET + 1];
 } TFTP_DATA_BLOCK;
-
-
 
 #endif
 

@@ -607,7 +607,7 @@ void new_request() {
 		strcat(error_packet.data, "wrong mode (expected octet)");
 
 		status = ERROR;
-		tftp_error = ERROR_WRONG_MODE;
+		tftp_error = ERROR_UNDEFINED;
 		return;
 	}
 
