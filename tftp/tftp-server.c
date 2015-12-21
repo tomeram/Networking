@@ -24,6 +24,8 @@ TFTP_DATA_BLOCK data_response;
 
 char filename[MAX_DATA_PACKET+1];
 
+TFTP_PACKET error_packet;
+
 void parseInput() {
 	short error = 0;
 	short op;
@@ -107,9 +109,12 @@ void parseInput() {
 	}
 
 	if (error == 1) {
+		bzero(error_packet.data,sizeof(error_packet.data));
+		error_packet.errorCode = ERROR_UNDEFINED;
+		strcat(error_packet.data, "Bad Request");
 		tftp_request.opcode = 0;
 		status = ERROR;
-		tftp_error = ERROR_BAD_REQUEST;
+		tftp_error = ERROR_UNDEFINED;
 	}
 }
 
@@ -216,7 +221,6 @@ int read_next_block(int file_fd) {
 }
 
 void read_request() {
-	int attempts = 0;
 	int response_len, isEOF = 0;
 	int bytes_read;
 	
@@ -227,24 +231,11 @@ void read_request() {
 	int sock_connection;
 
 	struct timeval tv;
-	//int resend_flag = 0;
 
-	if (stat(filename,&file_stat) == -1 || S_ISDIR(file_stat.st_mode)) {
-		status = ERROR;
-		tftp_error = ERROR_FILE_NOT_FOUND;
-		return;
-	}
-
-	//error check: can read from file
-	if (access(filename, R_OK) == -1 || (file_fd = open(filename, O_RDONLY)) == -1) {
-		status = ERROR;
-		tftp_error = ERROR_ACCESS_VIOLATION;
-		return;
-	}
+	TFTP_PACKET res_data;
 
 	//initiate a connection
 	if ((sock_connection = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-		error_check(close(file_fd));
 		printf("Socket Error: %s\n", strerror(errno));
 		status = ERROR;
 		tftp_error = ERROR_UNDEFINED;
@@ -257,7 +248,6 @@ void read_request() {
 	connection_serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	if ((bind(sock_connection,(struct sockaddr *) &connection_serveraddr, sizeof(connection_serveraddr))) != 0) {
-		error_check(close(file_fd));
 		error_check(close(sock_connection));
 		printf("Bind Error: %s\n", strerror(errno));
 		status = ERROR;
@@ -268,11 +258,31 @@ void read_request() {
 	tv.tv_sec = TIMEOUT_INTERVAL;
 	tv.tv_usec = 0;
 	if ((setsockopt(sock_connection,SOL_SOCKET,SO_RCVTIMEO, &tv, sizeof(tv))) == -1) {
-		error_check(close(file_fd));
 		error_check(close(sock_connection));
 		printf("Setsockopt (Timeout) Error: %s\n", strerror(errno));
 		status = ERROR;
 		tftp_error = ERROR_UNDEFINED;
+		return;
+	}
+
+	if (stat(filename,&file_stat) == -1 || S_ISDIR(file_stat.st_mode)) {
+		bzero(res_data.data,sizeof(res_data.data));
+		res_data.errorCode = ERROR_FILE_NOT_FOUND;
+		strcat(res_data.data, "File not found");
+
+		sendError(&res_data, sock_connection);
+		error_check(close(sock_connection));
+		return;
+	}
+
+	//error check: can read from file
+	if (access(filename, R_OK) == -1 || (file_fd = open(filename, O_RDONLY)) == -1) {
+		bzero(res_data.data,sizeof(res_data.data));
+		res_data.errorCode = ERROR_ACCESS_VIOLATION;
+		strcat(res_data.data, "Cannot open file");
+
+		sendError(&res_data, sock_connection);
+		error_check(close(sock_connection));
 		return;
 	}
 
@@ -302,33 +312,43 @@ void read_request() {
 	}
 
 	while(1) {
-		//TODO - get ACK
 		req_len = recvfrom(sock_connection, &request, sizeof(request), 0, (struct sockaddr *) &tftp_clientaddr, &clientlen);
 		if (req_len == -1) {
-			printf("recv Error: %s\n", strerror(errno));
-			error_check(close(file_fd));
-			error_check(close(sock_connection));
-			status = ERROR;
-			tftp_error = ERROR_UNDEFINED;
-			return;
+			break; //timeout - or error in recvfrom
 		}
 
 		if (req_len < sizeof(opcode)) { //Error: Header too small
-			printf("todo- timeout??\n");
+			bzero(res_data.data,sizeof(res_data.data));
+			res_data.errorCode = ERROR_UNDEFINED;
+			strcat(res_data.data, "No opcode found (BAD REQUEST)");
+
+			sendError(&res_data, sock_connection);
+
 			continue;
 		}
 
 		parseInput();
 
 		if (status == ERROR) {
-			printf("todo...\n");
+			bzero(res_data.data,sizeof(res_data.data));
+			res_data.errorCode = ERROR_UNDEFINED;
+			strcat(res_data.data, "Bad request");
+
+			sendError(&res_data, sock_connection);
+
 			status = OK;
 			continue;
 		}
 
 		//error check 2: opcode is ACK
 		if (tftp_request.opcode != OPCODE_ACK) {
-			printf("todo...\n");
+			bzero(res_data.data,sizeof(res_data.data));
+			res_data.errorCode = ERROR_ILLEGAL_OP;
+			strcat(res_data.data, "Expected Ack opcode");
+
+			sendError(&res_data, sock_connection);
+
+			status = OK;
 			continue;
 		}
 
@@ -341,10 +361,12 @@ void read_request() {
 			block++;
 			if ((bytes_read = read_next_block(file_fd)) == -1) {
 				printf("read from file Error: %s\n", strerror(errno));
-				error_check(close(file_fd));
-				error_check(close(sock_connection));
-				status = ERROR;
-				tftp_error = ERROR_UNDEFINED; //TODO is it error undefined or access violation?..
+				bzero(res_data.data,sizeof(res_data.data));
+				res_data.errorCode = ERROR_ACCESS_VIOLATION;
+				strcat(res_data.data, "Failed to read from file");
+
+				sendError(&res_data, sock_connection);
+				break;
 			}
 			response_len = bytes_read + sizeof(opcode) + sizeof(block);
 
@@ -357,11 +379,7 @@ void read_request() {
 		if (tftp_request.block == block - 2 || tftp_request.block == block - 1) {
 			if (sendto(sock_connection, (char *)&data_response, response_len, 0, (struct sockaddr*)&tftp_clientaddr, clientlen) == -1) {
 				printf("send Error: %s\n", strerror(errno));
-				error_check(close(file_fd));
-				error_check(close(sock_connection));
-				status = ERROR;
-				tftp_error = ERROR_UNDEFINED;
-				return;
+				break;
 			}
 		}
 	}
@@ -503,6 +521,10 @@ void new_request() {
 	int i;
 
 	if (req_len < sizeof(opcode)) { //Error: Header too small
+		bzero(error_packet.data,sizeof(error_packet.data));
+		error_packet.errorCode = ERROR_UNDEFINED;
+		strcat(error_packet.data, "Bad Request (no opcode found)");
+		
 		status = ERROR;
 		tftp_error = ERROR_UNDEFINED;  
 		return;
@@ -516,6 +538,10 @@ void new_request() {
 
 	//error check 2: opcode is read/write
 	if (tftp_request.opcode != OPCODE_READ && tftp_request.opcode != OPCODE_WRITE) {
+		bzero(error_packet.data,sizeof(error_packet.data));
+		error_packet.errorCode = ERROR_ILLEGAL_OP;
+		strcat(error_packet.data, "Expected Read/Write opcode");
+
 		status = ERROR;
 		tftp_error = ERROR_ILLEGAL_OP;
 		return;
@@ -533,6 +559,10 @@ void new_request() {
 	}
 
 	if (strcmp(tftp_request.mode, "octet") != 0) {
+		bzero(error_packet.data,sizeof(error_packet.data));
+		error_packet.errorCode = ERROR_UNDEFINED;
+		strcat(error_packet.data, "wrong mode (expected octet)");
+
 		status = ERROR;
 		tftp_error = ERROR_WRONG_MODE;
 		return;
@@ -550,8 +580,6 @@ void new_request() {
 }
 
 int main(int argc, char **argv) {
-	TFTP_PACKET res_data;
-
 	if (argc != 1) {
 		printf("Too many arguments given\n");
 		return 0;
@@ -571,11 +599,9 @@ int main(int argc, char **argv) {
 
 		new_request();
 
-		if (status == ERROR) {
-			printf("error!\n");
-			status = OK; //bypass till to do
-
-			sendError(&res_data, sockfd);
+		if (status == ERROR) { 
+			sendError(&error_packet, sockfd);
+			status = OK;
 		}
 
 	}
