@@ -444,25 +444,44 @@ void write_request() {
 		req_len = recvfrom(sock_connection, &request, sizeof(request), 0, (struct sockaddr *) &tftp_clientaddr, &clientlen);
 		parseInput();
 
+		// Wrong opcode recieved
+		if (tftp_request.opcode != OPCODE_DATA) {
+			printf("File already exists error\n");
+			res_data.errorCode = ERROR_ILLEGAL_OP;
+			strcat(res_data.data, "Expected data op code");
+
+			sendError(&res_data, sock_connection);
+
+			continue;
+		}
+
+		// An ack packet wasn't recieved, re-transmit it
+		if (tftp_request.block == res_data.block) {
+			goto ACK_SEND;
+		}
+
 		// write to file
 		res_data.block++;
-		printf("op: %d, block: %d, data: %s\n\n", tftp_request.opcode, tftp_request.block, tftp_request.data);
 
 		if (write(file_fd, tftp_request.data, strlen(tftp_request.data)) < 0) {
 			printf("write Error: %s\n", strerror(errno));
 
 			status = ERROR;
-			error_check(close(file_fd));
-			error_check(close(sock_connection));
 
 			if (errno == ENOSPC) {
-				tftp_error = ERROR_DISK_FULL;
+				res_data.errorCode = ERROR_DISK_FULL;
+				strcat(res_data.data, "No space left on server");
 			} else {
-				tftp_error = ERROR_UNDEFINED;
+				res_data.errorCode = ERROR_UNDEFINED;
+				strcat(res_data.data, "An unknown error has occured");
 			}
 
-			return;
+			sendError(&res_data, sock_connection);
+
+			break;
 		}
+
+		ACK_SEND:
 
 		// Send ack
 		bzero(response, MAX_BUFF_SIZE);
@@ -470,12 +489,10 @@ void write_request() {
 		parseOutput(response, &res_data);
 
 		if (sendto(sock_connection, response, 4, 0, (struct sockaddr*)&tftp_clientaddr, clientlen) == -1) {
-			printf("send Error: %s\n", strerror(errno));
-			error_check(close(file_fd));
-			error_check(close(sock_connection));
+			printf("send Error: %s\n", strerror(errno));;
 			status = ERROR;
 			tftp_error = ERROR_UNDEFINED;
-			return;
+			break;
 		}
 
 		// If done, break
@@ -486,6 +503,10 @@ void write_request() {
 
 	error_check(close(file_fd));
 	error_check(close(sock_connection));
+
+	if (status == ERROR) {
+		remove(filename);
+	}
 }
 
 void new_request() {
@@ -539,6 +560,8 @@ void new_request() {
 }
 
 int main(int argc, char **argv) {
+	TFTP_PACKET res_data;
+
 	if (argc != 1) {
 		printf("Too many arguments given\n");
 		return 0;
@@ -561,6 +584,8 @@ int main(int argc, char **argv) {
 		if (status == ERROR) {
 			printf("error!\n");
 			status = OK; //bypass till to do
+
+			sendError(&res_data, sockfd);
 		}
 
 	}
