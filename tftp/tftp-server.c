@@ -143,7 +143,7 @@ int parseOutput(char *response, TFTP_PACKET *msg) {
 			response[2] = msg->errorCode >> 8;
 			response[3] = (msg->errorCode << 8) >> 8;
 
-			strcat(response, msg->data);
+			strcat(&response[4], msg->data);
 			break;
 
 		default:
@@ -153,13 +153,13 @@ int parseOutput(char *response, TFTP_PACKET *msg) {
 	return 1;
 }
 
-int sendError(TFTP_PACKET *msg) {
-	char response[MAX_DATA_PACKET];
+void sendError(TFTP_PACKET *msg, int sockfd) {
+	char response[MAX_DATA_PACKET] = {0, };
 
 	msg->opcode = 5;
 	parseOutput(response, msg);
 
-	return 1;
+	sendto(sockfd, response, strlen(msg->data) + 4, 0, (struct sockaddr*)&tftp_clientaddr, clientlen);
 }
 
 int start_server() {
@@ -392,18 +392,8 @@ void write_request() {
 
 	printf("Write Request\n");
 
-	// File exists
-	if (access(filename, F_OK) != -1) {
-		status = ERROR;
-		tftp_error = ERROR_FILE_EXISTS;
-		return;
-	}
-
-	file_fd = open(filename, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-
 	// Open connection with new random port (TID)
 	if ((sock_connection = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-		error_check(close(file_fd));
 		printf("Socket Error: %s\n", strerror(errno));
 		status = ERROR;
 		tftp_error = ERROR_UNDEFINED;
@@ -416,13 +406,25 @@ void write_request() {
 	connection_serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	if ((bind(sock_connection,(struct sockaddr *) &connection_serveraddr, sizeof(connection_serveraddr))) != 0) {
-		error_check(close(file_fd));
 		error_check(close(sock_connection));
 		printf("Bind Error: %s\n", strerror(errno));
 		status = ERROR;
 		tftp_error = ERROR_UNDEFINED;
 		return;
 	}
+
+	// Check if ile exists
+	if (access(filename, F_OK) != -1) {
+		printf("File already exists error\n");
+		res_data.errorCode = ERROR_FILE_EXISTS;
+		strcat(res_data.data, "File already exists on server");
+
+		sendError(&res_data, sock_connection);
+
+		return;
+	}
+
+	file_fd = open(filename, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
 
 	res_data.opcode = 4;
 	parseOutput(response, &res_data);
