@@ -20,6 +20,11 @@
 #define PORT_NUM 69
 #define MAX_DATA_PACKET 512
 
+//longest message possible - Error: opcode(2b) + errorcode(2b) + string + '\0'
+#define MAX_BUFF_SIZE (2+2+MAX_DATA_PACKET+1)
+
+#define MAX_BAD_ATTEMPTS 5
+
 typedef enum {
 	OK,
 	READ,
@@ -46,8 +51,18 @@ typedef enum {
 	ERROR_NO_USER = 7, 
 	//our additions
 	ERROR_BAD_REQUEST = 8,
-	ERROR_WRONG_MODE = 9
+	ERROR_WRONG_MODE = 9,
+	ERROR_BAD_ATTEMPTS = 10
 } TFTP_ERROR;
+
+
+typedef struct {
+	short opcode;
+	short block;
+	char data[MAX_DATA_PACKET+1];
+	char mode[MAX_DATA_PACKET+1];
+	short errorCode;
+} TFTP_PACKET;
 
 typedef struct {
 	short opcode;
