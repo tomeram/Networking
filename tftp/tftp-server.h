@@ -23,7 +23,7 @@
 //longest message possible - Error: opcode(2b) + errorcode(2b) + string + '\0'
 #define MAX_BUFF_SIZE (2 + 2 + MAX_DATA_PACKET + 1)
 
-#define MAX_BAD_ATTEMPTS 5
+#define TIMEOUT_INTERVAL 10 //10 secs 
 
 typedef enum {
 	OK,
