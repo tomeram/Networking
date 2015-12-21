@@ -24,16 +24,11 @@ TFTP_DATA_BLOCK data_response;
 
 char filename[MAX_DATA_PACKET+1];
 
-
-/**
-* Converts the packet struct to the correct packet string format
-*/
 void parseInput() {
 	short error = 0;
 	short op;
 	int bytes_read = 0;
-
-	// Clean tftp_request
+	//clean tftp_request
 	tftp_request.opcode = 0;
 	tftp_request.block = 0;
 	bzero(&(tftp_request.data), sizeof(tftp_request.data));
@@ -116,48 +111,12 @@ void parseInput() {
 		status = ERROR;
 		tftp_error = ERROR_BAD_REQUEST;
 	}
+
+	return;
 }
 
-/**
-* Builds the response string from the TFTP_PACKET struct
-*/
-int parseOutput(char *response, TFTP_PACKET *msg) {
-	// Set Opcode
-	response[0] = 0;
-	response[1] = msg->opcode;
 
-	switch(msg->opcode) {
-		//Data packet
-		case 3:
-
-			break;
-
-		// Ack packet
-		case 4:
-			response[2] = msg->block >> 8;
-			response[3] = (msg->block << 8) >> 8;
-			break;
-
-		// Error packet
-		case 5:
-			response[2] = msg->errorCode >> 8;
-			response[3] = (msg->errorCode << 8) >> 8;
-
-			strcat(response, msg->data);
-			break;
-
-		default:
-			break;
-	}
-
-	return 1;
-}
-
-int sendError(TFTP_PACKET *msg) {
-	char response[MAX_DATA_PACKET];
-
-	msg->opcode = 5;
-	parseOutput(response, msg);
+int parseOutput(char *buffer, TFTP_PACKET *msg) {
 
 	return 1;
 }
@@ -192,8 +151,8 @@ int start_server() {
 	return 1;
 }
 
-
 //todo change data_response to response buffer
+
 /* returns number of blocks read, -1 for error*/
 int read_next_block(int file_fd) {
 	int read_bytes,total_bytes;
@@ -205,7 +164,6 @@ int read_next_block(int file_fd) {
 	//TODO - handle blocks (currently only sends first 512 chars...? maybe not since file still open - need to check... :) )
 	read_bytes = 1;
 	total_bytes = 0;
-
 	while (read_bytes > 0 && total_bytes < MAX_DATA_PACKET) {
 		read_bytes = read(file_fd, data_response.data + total_bytes, MAX_DATA_PACKET - total_bytes);
 		total_bytes += read_bytes;
@@ -221,7 +179,6 @@ int read_next_block(int file_fd) {
 }
 
 void read_request() {
-	int attempts = 0;
 	int response_len, isEOF = 0;
 	int bytes_read;
 	
@@ -231,6 +188,7 @@ void read_request() {
 	struct sockaddr_in connection_serveraddr;
 	int sock_connection;
 
+	struct timeval tv;
 	//int resend_flag = 0;
 
 	if (stat(filename,&file_stat) == -1 || S_ISDIR(file_stat.st_mode)) {
@@ -269,6 +227,16 @@ void read_request() {
 		return;
 	}
 
+	tv.tv_sec = TIMEOUT_INTERVAL;
+	tv.tv_usec = 0;
+	if ((setsockopt(sock_connection,SOL_SOCKET,SO_RCVTIMEO, &tv, sizeof(tv))) == -1) {
+		error_check(close(file_fd));
+		error_check(close(sock_connection));
+		printf("Setsockopt (Timeout) Error: %s\n", strerror(errno));
+		status = ERROR;
+		tftp_error = ERROR_UNDEFINED;
+		return;
+	}
 
 	block = 1;
 	//TODO - timeout
@@ -282,7 +250,6 @@ void read_request() {
 	}
 	response_len = bytes_read + sizeof(opcode) + sizeof(block);
 
-	//todo change data_response to response buffer
 	if (sendto(sock_connection, (char *)&data_response, response_len, 0, (struct sockaddr*)&tftp_clientaddr, clientlen) == -1) {
 		printf("send Error: %s\n", strerror(errno));
 		error_check(close(file_fd));
@@ -296,21 +263,11 @@ void read_request() {
 		isEOF = 1;
 	}
 
-	//TODO - send errors for wrong/bad packets? or try few times before sending error?
 	while(1) {
-		if (attempts == MAX_BAD_ATTEMPTS) {
-			error_check(close(file_fd));
-			error_check(close(sock_connection));
-			status = ERROR;
-			tftp_error = ERROR_BAD_ATTEMPTS;
-			return;  
-		}
-
 		//TODO - get ACK
 		req_len = recvfrom(sock_connection, &request, sizeof(request), 0, (struct sockaddr *) &tftp_clientaddr, &clientlen);
-
 		if (req_len == -1) {
-			printf("send Error: %s\n", strerror(errno));
+			printf("recv Error: %s\n", strerror(errno));
 			error_check(close(file_fd));
 			error_check(close(sock_connection));
 			status = ERROR;
@@ -319,27 +276,23 @@ void read_request() {
 		}
 
 		if (req_len < sizeof(opcode)) { //Error: Header too small
-			attempts ++;
+			printf("todo- timeout??\n");
 			continue;
 		}
 
 		parseInput();
 
 		if (status == ERROR) {
-			attempts ++;
+			printf("todo...\n");
 			status = OK;
 			continue;
 		}
 
 		//error check 2: opcode is ACK
 		if (tftp_request.opcode != OPCODE_ACK) {
-			attempts ++;
+			printf("todo...\n");
 			continue;
 		}
-
-		printf("ack for block: %d\n",tftp_request.block);
-
-
 
 		if (tftp_request.block == block) { 
 
@@ -362,7 +315,6 @@ void read_request() {
 			}
 		}
 
-		//todo change data_response to response buffer
 		//if ack for prev block, or ack for curr block - send again/next block
 		if (tftp_request.block == block - 2 || tftp_request.block == block - 1) {
 			if (sendto(sock_connection, (char *)&data_response, response_len, 0, (struct sockaddr*)&tftp_clientaddr, clientlen) == -1) {
@@ -378,112 +330,11 @@ void read_request() {
 
 	error_check(close(file_fd));
 	error_check(close(sock_connection));
+	return;
 }
 
 void write_request() {
-	int file_fd;
-	TFTP_PACKET res_data;
-	res_data.block = 0;
 
-	int sock_connection;
-	struct sockaddr_in connection_serveraddr;
-
-	char response[MAX_BUFF_SIZE] = {0, };
-
-	printf("Write Request\n");
-
-	// File exists
-	if (access(filename, F_OK) != -1) {
-		status = ERROR;
-		tftp_error = ERROR_FILE_EXISTS;
-		return;
-	}
-
-	file_fd = open(filename, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-
-	// Open connection with new random port (TID)
-	if ((sock_connection = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-		error_check(close(file_fd));
-		printf("Socket Error: %s\n", strerror(errno));
-		status = ERROR;
-		tftp_error = ERROR_UNDEFINED;
-		return;
-	}
-
-	bzero(&connection_serveraddr, sizeof(connection_serveraddr));
-	connection_serveraddr.sin_family = AF_INET;
-	connection_serveraddr.sin_port = htons(0);
-	connection_serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-	if ((bind(sock_connection,(struct sockaddr *) &connection_serveraddr, sizeof(connection_serveraddr))) != 0) {
-		error_check(close(file_fd));
-		error_check(close(sock_connection));
-		printf("Bind Error: %s\n", strerror(errno));
-		status = ERROR;
-		tftp_error = ERROR_UNDEFINED;
-		return;
-	}
-
-	res_data.opcode = 4;
-	parseOutput(response, &res_data);
-
-	if (sendto(sock_connection, response, 4, 0, (struct sockaddr*)&tftp_clientaddr, clientlen) == -1) {
-		printf("send Error: %s\n", strerror(errno));
-		error_check(close(file_fd));
-		error_check(close(sock_connection));
-		status = ERROR;
-		tftp_error = ERROR_UNDEFINED;
-		return;
-	}
-
-	while(1) {
-		// Recive packet and write to file
-		bzero(&request, sizeof(request)); 
-		req_len = recvfrom(sock_connection, &request, sizeof(request), 0, (struct sockaddr *) &tftp_clientaddr, &clientlen);
-		parseInput();
-
-		// write to file
-		res_data.block++;
-		printf("op: %d, block: %d, data: %s\n\n", tftp_request.opcode, tftp_request.block, tftp_request.data);
-
-		if (write(file_fd, tftp_request.data, strlen(tftp_request.data)) < 0) {
-			printf("write Error: %s\n", strerror(errno));
-
-			status = ERROR;
-			error_check(close(file_fd));
-			error_check(close(sock_connection));
-
-			if (errno == ENOSPC) {
-				tftp_error = ERROR_DISK_FULL;
-			} else {
-				tftp_error = ERROR_UNDEFINED;
-			}
-
-			return;
-		}
-
-		// Send ack
-		bzero(response, MAX_BUFF_SIZE);
-		res_data.opcode = 4;
-		parseOutput(response, &res_data);
-
-		if (sendto(sock_connection, response, 4, 0, (struct sockaddr*)&tftp_clientaddr, clientlen) == -1) {
-			printf("send Error: %s\n", strerror(errno));
-			error_check(close(file_fd));
-			error_check(close(sock_connection));
-			status = ERROR;
-			tftp_error = ERROR_UNDEFINED;
-			return;
-		}
-
-		// If done, break
-		if (strlen(tftp_request.data) < MAX_DATA_PACKET) {
-			break;
-		}
-	}
-
-	error_check(close(file_fd));
-	error_check(close(sock_connection));
 }
 
 void new_request() {
@@ -512,7 +363,7 @@ void new_request() {
 
 	strcpy(filename,tftp_request.data);
 	
-	printf("filename: %s\nmode: %s\nopcode: %d\n", filename,tftp_request.mode,tftp_request.opcode);
+	//printf("filename: %s\nmode: %s\nopcode: %d\n", filename,tftp_request.mode,tftp_request.opcode);
 
 	//error check 4: mode == 'octet'
 	for (i = 0 ; tftp_request.mode[i]; i++) {
@@ -546,23 +397,29 @@ int main(int argc, char **argv) {
 		return 0;
 	}
 
-	while (1) {
+	while (1) { //TODO: timeouts...
+
 		bzero(&request, sizeof(request)); 
 		req_len = recvfrom(sockfd, &request, sizeof(request), 0, (struct sockaddr *) &tftp_clientaddr, &clientlen);
 		
-		if (req_len < 0) {
-			continue;
+		if (req_len != -1) {
+			new_request();
 		}
 
-		new_request();
+		else {
+			//TODO - error in recvfrom... bahhh too many error-checking
+		}
 
 		if (status == ERROR) {
 			printf("error!\n");
 			status = OK; //bypass till to do
+			//TODO - send error
 		}
 
 	}
 
 	close(sockfd);
+	//freeaddrinfo(&serveraddr);
+	//freeaddrinfo(&clientaddr);
 }
 
