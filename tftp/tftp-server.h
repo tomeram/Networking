@@ -17,11 +17,11 @@
 #include <dirent.h>
 #include <fcntl.h>
 
-#define PORT_NUM 69
+#define PORT_NUM 6900
 #define MAX_DATA_PACKET 512
 
 //longest message possible - Error: opcode(2b) + errorcode(2b) + string + '\0'
-#define MAX_BUFF_SIZE (2+2+MAX_DATA_PACKET+1)
+#define MAX_BUFF_SIZE (2 + 2 + MAX_DATA_PACKET + 1)
 
 #define MAX_BAD_ATTEMPTS 5
 
@@ -59,20 +59,20 @@ typedef enum {
 typedef struct {
 	short opcode;
 	short block;
-	char data[MAX_DATA_PACKET+1];
-	char mode[MAX_DATA_PACKET+1];
+	char data[MAX_DATA_PACKET + 1];
+	char mode[MAX_DATA_PACKET + 1];
 	short errorCode;
 } TFTP_PACKET;
 
 typedef struct {
 	short opcode;
-	char data[MAX_DATA_PACKET+1];
+	char data[MAX_DATA_PACKET + 1];
 } TFTP_MSG;
 
 typedef struct {
 	short opcode;
 	short block_num;
-	char data[MAX_DATA_PACKET+1];
+	char data[MAX_DATA_PACKET + 1];
 } TFTP_DATA_BLOCK;
 
 
