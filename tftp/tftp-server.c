@@ -216,7 +216,6 @@ int read_next_block(int file_fd) {
 }
 
 void read_request() {
-	int attempts = 0;
 	int response_len, isEOF = 0;
 	int bytes_read;
 	
@@ -377,6 +376,7 @@ void write_request() {
 
 	int sock_connection;
 	struct sockaddr_in connection_serveraddr;
+	struct timeval tv;
 
 	char response[MAX_BUFF_SIZE] = {0, };
 
@@ -398,6 +398,17 @@ void write_request() {
 	if ((bind(sock_connection,(struct sockaddr *) &connection_serveraddr, sizeof(connection_serveraddr))) != 0) {
 		error_check(close(sock_connection));
 		printf("Bind Error: %s\n", strerror(errno));
+		status = ERROR;
+		tftp_error = ERROR_UNDEFINED;
+		return;
+	}
+
+	tv.tv_sec = TIMEOUT_INTERVAL;
+	tv.tv_usec = 0;
+	
+	if ((setsockopt(sock_connection,SOL_SOCKET,SO_RCVTIMEO, &tv, sizeof(tv))) == -1) {
+		error_check(close(sock_connection));
+		printf("Setsockopt (Timeout) Error: %s\n", strerror(errno));
 		status = ERROR;
 		tftp_error = ERROR_UNDEFINED;
 		return;
@@ -432,12 +443,30 @@ void write_request() {
 		// Recive packet and write to file
 		bzero(&request, sizeof(request)); 
 		req_len = recvfrom(sock_connection, &request, sizeof(request), 0, (struct sockaddr *) &tftp_clientaddr, &clientlen);
+
+		if (req_len < 2) {
+			res_data.errorCode = ERROR_UNDEFINED;
+
+			sendError(&res_data, sock_connection);
+
+			// Timeout error
+			if (req_len < 0) {
+				error_check(close(file_fd));
+				error_check(close(sock_connection));
+				return;
+			}
+
+			// Other error
+			continue;
+		}
+
 		parseInput();
 
 		// Wrong opcode recieved
 		if (tftp_request.opcode != OPCODE_DATA) {
 			printf("File already exists error\n");
 			res_data.errorCode = ERROR_ILLEGAL_OP;
+			bzero(res_data.data, sizeof(res_data.data));
 			strcat(res_data.data, "Expected data op code");
 
 			sendError(&res_data, sock_connection);
@@ -460,9 +489,11 @@ void write_request() {
 
 			if (errno == ENOSPC) {
 				res_data.errorCode = ERROR_DISK_FULL;
+				bzero(res_data.data, sizeof(res_data.data));
 				strcat(res_data.data, "No space left on server");
 			} else {
 				res_data.errorCode = ERROR_UNDEFINED;
+				bzero(res_data.data, sizeof(res_data.data));
 				strcat(res_data.data, "An unknown error has occured");
 			}
 
@@ -572,10 +603,8 @@ int main(int argc, char **argv) {
 		new_request();
 
 		if (status == ERROR) {
-			printf("error!\n");
-			status = OK; //bypass till to do
-
 			sendError(&res_data, sockfd);
+			status = OK;
 		}
 
 	}
